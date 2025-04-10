@@ -1,0 +1,13 @@
+name: py2p
+
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy=2.2.4
+  
+  - pip
+  - pip:
+    - tqdm==4.62.3
+
