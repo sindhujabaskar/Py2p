@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
 
-def calculate_baseline(raw_fluorescence, percentile): # calculates the specified percentile along each roi's raw fluorescence to yield a baseline fluorescence value
+def calculate_baseline(raw_f, percentile): # calculates the specified percentile along each roi's raw fluorescence to yield a baseline fluorescence value
     percentile_list = []
-    for row in raw_fluorescence:
+    for row in raw_f:
         find_percentile = np.percentile(row, percentile, keepdims = True)
         percentile_list.append(find_percentile)
     baseline_fluorescence = np.array(percentile_list)

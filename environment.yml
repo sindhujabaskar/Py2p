@@ -12,4 +12,6 @@ dependencies:
   - pip:
     - tqdm==4.62.3
     - pandas-stubs=2.2.3
+    - matplotlib=3.10.1
+    - pillow=11.2.1
 
