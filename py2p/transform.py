@@ -96,3 +96,26 @@ def smooth_dff(dff_data, smoothing_kernel=3):
     
     return smoothed_dff
 
+def active_rois(filtered_roi, min_prominence=-.5, min_distance=3)
+    """
+    Identifies active ROIs based on the dFF data.
+
+    Parameters
+    ----------
+    filtered_roi : np.ndarray
+        A 2D numpy array of shape (num_rois, num_frames) representing the ROI data.
+    min_prominence : float, optional
+        The minimum prominence for peak detection (default is -0.5).
+    min_distance : int, optional
+        The minimum distance between peaks (default is 3).
+
+    Returns
+    -------
+    active_rois : np.ndarray
+        A boolean array indicating which ROIs are active.
+    """
+    active_rois = np.zeros(filtered_roi.shape[0], dtype=bool)
+    for roi in len(filtered_roi):
+        roi_events, _ = scipy.signal.find_peaks(filtered_roi[roi], prominence = min_prominence, distance = min_distance)
+        active_rois[roi,0] = len(roi_events)
+    return active_rois
