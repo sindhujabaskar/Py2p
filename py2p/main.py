@@ -1,5 +1,5 @@
-from py2p.io import load_suite2p_outputs
-from py2p.transform import filter_rois, filter_neuropil, interpolate_roi
+from py2p.io import load_suite2p_outputs, export_to_csv
+from py2p.transform import filter_rois, filter_neuropil, interpolate_roi, smooth_dff
 from py2p.calculate import calculate_baseline, calculate_dff
 from py2p.plot import plot_something
 from py2p.config import DATA_DIR
@@ -25,12 +25,16 @@ def main():
 
     interpolated_data = interpolate_roi(filtered_data, offset_frames=81, original_rate=9.865, target_rate=10)
     print("interpolated_dff shape:", interpolated_data.shape)
-    print("interpolated_dff:", interpolated_data)
 
     interpolated_dff = calculate_dff(interpolated_data, baseline_fluorescence)
 
-    plot_something(roi_dff)
-    plot_something(interpolated_dff)
+    smoothed_dff = smooth_dff(interpolated_dff, smoothing_kernel=3)
+    print("smoothed_dff shape:", smoothed_dff.shape)
+
+    export_to_csv(roi_dff, output_path='roi_dff.csv')
+
+    # plot_something(roi_dff)
+    # plot_something(interpolated_dff)
 if __name__ == "__main__":
     main()
 

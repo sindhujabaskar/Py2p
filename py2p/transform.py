@@ -70,3 +70,29 @@ def interpolate_roi(filtered_roi, offset_frames=81, original_rate=9.865, target_
     interpolated_roi = cs(new_time_vector)
     
     return interpolated_roi #, old_time_vector, new_time_vector
+
+def smooth_dff(dff_data, smoothing_kernel=3):
+    """
+    Smooths the dFF data using a simple moving average filter.
+
+    Parameters
+    ----------
+    dff_data : np.ndarray
+        A 2D numpy array of shape (num_rois, num_frames) representing the dFF data.
+    smoothing_kernel : int, optional
+        The size of the smoothing kernel (default is 3).
+
+    Returns
+    -------
+    smoothed_dff : np.ndarray
+        A numpy array with the smoothed dFF data.
+    """
+    
+    # Create a simple moving average filter kernel
+    kernel = np.ones(smoothing_kernel) / smoothing_kernel
+    
+    # Apply the filter to each ROI's dFF data using convolution
+    smoothed_dff = np.array([np.convolve(roi, kernel, mode='same') for roi in dff_data])
+    
+    return smoothed_dff
+
