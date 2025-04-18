@@ -85,16 +85,17 @@ def smooth_dff(dff_data, smoothing_kernel=3):
     Returns
     -------
     smoothed_dff : np.ndarray
-        A numpy array with the smoothed dFF data.
+        A numpy array with the smoothed dFF data. 
     """
     
-    # Create a simple moving average filter kernel
-    kernel = np.ones(smoothing_kernel) / smoothing_kernel
-    
-    # Apply the filter to each ROI's dFF data using convolution
-    smoothed_dff = np.array([np.convolve(roi, kernel, mode='same') for roi in dff_data])
-    
-    return smoothed_dff
+
+    smoothed_roi_dff = [] # create an empty list to store smoothed dff values per roi
+
+    for roi in range(dff_data.shape[0]):
+        smoothed_roi = np.convolve(dff_data[roi] , np.ones(smoothing_kernel)/smoothing_kernel, mode='same') # convolution kernel is [0.33, 0.33, 0.33] 
+        smoothed_roi_dff.append(smoothed_roi)
+    smoothed_roi_dff = np.array(smoothed_roi_dff)
+    return smoothed_roi_dff
 
 def active_rois(filtered_roi, min_prominence=-.5, min_distance=3):
     """

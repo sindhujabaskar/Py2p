@@ -4,14 +4,14 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.11
+  - python=3.13
   - numpy=2.2.4
   - pandas=2.2.3
   
   - pip
   - pip:
     - tqdm==4.62.3
-    - pandas-stubs=2.2.3
-    - matplotlib=3.10.1
-    - pillow=11.2.1
+    - pandas-stubs==2.2.3
+    - matplotlib==3.10.1
+    - pillow==11.2.1
 
