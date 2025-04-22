@@ -87,7 +87,6 @@ def smooth_dff(dff_data, smoothing_kernel=3):
     smoothed_dff : np.ndarray
         A numpy array with the smoothed dFF data. 
     """
-    
 
     smoothed_roi_dff = [] # create an empty list to store smoothed dff values per roi
 
