@@ -1,25 +1,21 @@
 import numpy as np
 import scipy.interpolate
 
-"""
-Filters the ROIs and neuropil fluorescence based on the cell identifier.
-    
-Parameters:
-suite2p_data_output (dict): Dictionary containing Suite2p output data.
-    
-Returns:
-tuple: Filtered ROIs and neuropil fluorescence.
-"""
+""
 
-def filter_rois(suite2p_data_output):
-    filtered_roi = np.array(suite2p_data_output['roi_fluorescence'][suite2p_data_output['cell_identifier'][:, 0].astype(bool)])
-    print("filter_roi shape:", filtered_roi.shape)
-    return filtered_roi
-
-def filter_neuropil(suite2p_data_output):
-    filtered_neuropil = np.array(suite2p_data_output['neuropil_fluorescence'][suite2p_data_output['cell_identifier'][:, 0].astype(bool)])
-    print("filter_pil shape:", filtered_neuropil.shape)   
-    return filtered_neuropil
+def filter_data_by_boolean(suite2p_dataframe):
+    """
+    Filters the ROIs and neuropil fluorescence based on the cell identifier.
+    
+    Parameters:
+    suite2p_dataframe (pd.DataFrame)): pandasDataFrame containing suite2p outputs with row ROI, columns of roi_f, neuropil_f, and is_cell bool
+    
+    Returns:
+    pd.DataFrame: Filtered ROIs and neuropil fluorescence by is_cell boolean.
+    """
+    filtered_data = suite2p_dataframe.loc[suite2p_dataframe['is_cell']]
+    assert filtered_data.shape[0] == np.sum(suite2p_dataframe['is_cell']), "Filtered data shape does not match the number of true cells."
+    return filtered_data #dataframe containing only the true cells for both roi and neuropil fluorescence
 
 def interpolate_roi(filtered_roi, offset_frames=81, original_rate=9.865, target_rate=10):
     """

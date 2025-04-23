@@ -1,21 +1,17 @@
 #%%
 from py2p.io import load_suite2p_outputs, create_roi_dataframe, export_to_csv
-from py2p.transform import filter_rois, filter_neuropil, interpolate_roi, smooth_dff, active_rois
+from py2p.transform import filter_data_by_boolean, interpolate_roi, smooth_dff, active_rois
 from py2p.calculate import calculate_baseline, calculate_dff
 from py2p.plot import plot_onething, plot_twothings
 from py2p.config import DATA_DIR
 #%%
 
-data = load_suite2p_outputs(DATA_DIR)
+data = load_suite2p_outputs(DATA_DIR) #loading data into a dictionary
 
-df = create_roi_dataframe(data)
+df = create_roi_dataframe(data) #create a multiindex dataframe from the dictionary
 
-filtered_data = filter_rois(data)
-print('filtered_data:', filtered_data)
+filtered_data = filter_data_by_boolean(data) #filter fluorescence data by boolean 'is_cell
 
-# true_cells_only contains numpy booleans (not Python booleans) so we can use sum - will treat as 1 and 0
-filtered_neuropil = filter_neuropil(data)
-print("filtered_neuropil shape:", filtered_neuropil.shape)
 
 baseline_fluorescence = calculate_baseline(filtered_data, percentile = 3)
 print("baseline_fluorescence shape:", baseline_fluorescence.shape)
