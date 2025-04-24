@@ -1,8 +1,8 @@
 #%%
-from py2p.io import load_suite2p_outputs, create_roi_dataframe, export_to_csv
-from py2p.transform import filter_data_by_boolean, interpolate_roi, smooth_dff, active_rois
+from py2p.io import load_suite2p_outputs, create_roi_dataframe
+from py2p.transform import filter_data_by_boolean
 from py2p.calculate import calculate_baseline, calculate_dff
-from py2p.plot import plot_onething, plot_twothings
+from py2p.plot import plot_onething
 from py2p.config import DATA_DIR
 #%%
 
@@ -10,29 +10,16 @@ data = load_suite2p_outputs(DATA_DIR) #loading data into a dictionary
 
 df = create_roi_dataframe(data) #create a multiindex dataframe from the dictionary
 
-filtered_data = filter_data_by_boolean(data) #filter fluorescence data by boolean 'is_cell
+filtered_data = filter_data_by_boolean(df) #filter fluorescence data by boolean 'is_cell
 
-
-baseline_fluorescence = calculate_baseline(filtered_data, percentile = 3)
+baseline_fluorescence = calculate_baseline(filtered_data['roi_fluorescence'], percentile = 3)
 print("baseline_fluorescence shape:", baseline_fluorescence.shape)
 
-roi_dff = calculate_dff(filtered_data, baseline_fluorescence)
+roi_dff = calculate_dff(filtered_data['roi_fluorescence'], baseline_fluorescence)
+print("roi_dff shape:", roi_dff.shape)
 
-interpolated_data = interpolate_roi(filtered_data, offset_frames=81, original_rate=9.865, target_rate=10)
-print("interpolated_dff shape:", interpolated_data.shape)
-
-interpolated_dff = calculate_dff(interpolated_data, baseline_fluorescence)
-
-smoothed_dff = smooth_dff(interpolated_dff, smoothing_kernel=3)
-print("smoothed_dff shape:", smoothed_dff.shape)
-
-active_rois_only = active_rois(smoothed_dff)
-print("active_rois_only:", active_rois_only)
-
-#export_to_csv(roi_dff, output_path='roi_dff.csv')
-
-plot_onething(roi_dff)
-plot_twothings(interpolated_dff, smoothed_dff)
+plot_onething(roi_dff.loc[3][:1000])
+# plot_twothings(interpolated_dff, smoothed_dff)
 
 
 # %%
@@ -124,3 +111,16 @@ def make_wide_df(long_df: pd.DataFrame) -> pd.DataFrame:
     return wide
 
 
+#%%
+# interpolated_data = interpolate_roi(filtered_data, offset_frames=81, original_rate=9.865, target_rate=10)
+# print("interpolated_dff shape:", interpolated_data.shape)
+
+# interpolated_dff = calculate_dff(interpolated_data, baseline_fluorescence)
+
+# smoothed_dff = smooth_dff(interpolated_dff, smoothing_kernel=3)
+# print("smoothed_dff shape:", smoothed_dff.shape)
+
+# active_rois_only = active_rois(roi_dff_dff)
+# print("active_rois_only:", active_rois_only)
+
+#export_to_csv(roi_dff, output_path='roi_dff.csv')
