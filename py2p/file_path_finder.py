@@ -1,6 +1,5 @@
-"""file_path_finder.py
-
-Module for enumerating BIDS-compliant datasets. AKA compiling file paths for all data sets in a given directory.
+"""
+Module for enumerating BIDS-compliant datasets.
 
 ExperimentRoot/
 ├── data/              # Raw acquisition files
@@ -29,7 +28,8 @@ MODALITY_PATTERNS: Dict[str, List[str]] = {
 
 def find_files(root: Path, modality: str) -> List[Path]:
     """
-    Identify file paths for a specified modality.
+    Recursively find all files matching the given modality
+    under `root`, using MODALITY_PATTERNS.
     Parameters
     ----------
     root : Path
@@ -45,5 +45,5 @@ def find_files(root: Path, modality: str) -> List[Path]:
     patterns = MODALITY_PATTERNS.get(modality, [])
     file_list: List[Path] = []
     for pattern in patterns:
-        file_list.extend(root.glob(f"data/**/*{pattern}", recursive=True))
+        file_list.extend(root.rglob(pattern))
     return sorted(file_list)
