@@ -23,7 +23,7 @@ from typing import List, Dict
 MODALITY_PATTERNS: Dict[str, List[str]] = {
     "beh": ["*_wheeldf.csv"],
     "func": ["*.npy"],
-    "pupil": ["*_.full.pickle"]
+    "pupil": ["*.pickle"]
 }
 
 def find_files(root: Path, modality: str) -> List[Path]:
