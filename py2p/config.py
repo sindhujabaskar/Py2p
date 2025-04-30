@@ -1,7 +1,5 @@
 
-RAW_DATA_DIR = r"E:\sbaskar\2408_SU24_F31\data"
-
-PROCESSED_DATA_DIR = r"E:\sbaskar\2408_SU24_F31\processed"
+DATA_DIR = r"E:\sbaskar\2408_SU24_F31"
 
 SUITE2P_FILE_PATTERNS = {
     'roi_fluorescence': '*F.npy', # np.ndarray(137, 6000) [rois, fluorescence_by_frame]

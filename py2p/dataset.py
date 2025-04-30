@@ -22,11 +22,11 @@ class ExperimentData:
     """
     High-level interface for aggregating BIDS datasets into a DataFrame.
     """
-    def __init__(self, root: Path):
+    def __init__(self, root: Path): #initialize the root directory path
         self.root = root
         self._df: pd.DataFrame = pd.DataFrame()
 
-    def load(self, loaders: Dict[str, Callable[[Path], object]]) -> pd.DataFrame:
+    def load(self, loaders: Dict[str, Callable[[Path], object]]) -> pd.DataFrame: 
         """
         Batch-apply modality-specific loaders and assemble a unified DataFrame.
 

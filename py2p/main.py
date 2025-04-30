@@ -112,6 +112,7 @@ def make_wide_df(long_df: pd.DataFrame) -> pd.DataFrame:
 
 
 #%%
+
 # interpolated_data = interpolate_roi(filtered_data, offset_frames=81, original_rate=9.865, target_rate=10)
 # print("interpolated_dff shape:", interpolated_data.shape)
 
@@ -124,3 +125,23 @@ def make_wide_df(long_df: pd.DataFrame) -> pd.DataFrame:
 # print("active_rois_only:", active_rois_only)
 
 #export_to_csv(roi_dff, output_path='roi_dff.csv')
+
+#%%
+from py2p.dataset import ExperimentData
+
+root = Path(DATA_DIR)
+data = ExperimentData(root)
+
+def test_load(path):
+    return path
+
+loaders = {
+    "beh": test_load,
+    "func": test_load,
+    "pupil": test_load
+}
+
+data.load(loaders)
+df = data.df
+
+# %%
