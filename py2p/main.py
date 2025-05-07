@@ -11,9 +11,9 @@ from pathlib import Path
 root = Path(DATA_DIR)
 data = ExperimentData(root)
 
-data = load_suite2p_outputs(DATA_DIR) #loading data into a dictionary
+# data = load_suite2p_outputs(DATA_DIR) #loading data into a dictionary
 
-df = create_roi_dataframe(data) #create a multiindex dataframe from the dictionary
+# df = create_roi_dataframe(data) #create a multiindex dataframe from the dictionary
 
 filtered_data = filter_data_by_boolean(df) #filter fluorescence data by boolean 'is_cell
 
@@ -28,93 +28,8 @@ plot_onething(roi_dff.loc[3][:1000])
 # plot_twothings(interpolated_dff, smoothed_dff)
 
 
-# %%
-from pathlib import Path
-from typing import Dict, List
-
-def build_experiment_filedict(root_dir: Path) -> Dict[str, Dict[str, Dict[str, List[Path]]]]:
-    """
-    Traverse  
-        root_dir/
-            sub-*/           # subject folders
-                ses-*/       # session folders
-                    <datatype>/   # e.g. 2p_tiff, dlc_videos, suite2p, etc.
-                        *         # any files in there
-    and return a nested dict:
-        {
-            'sub-00': {
-                'ses-00': {
-                    '2p_tiff':    [Path(...), Path(...), …],
-                    'dlc_videos': [Path(...), …],
-                    'suite2p':    [Path(...), …],
-                    …
-                },
-                'ses-01': { … },
-                …
-            },
-            'sub-01': { … },
-            …
-        }
-    """
-    filedict: Dict[str, Dict[str, Dict[str, List[Path]]]] = {}
-
-    root = Path(root_dir)
-    # look for all subject folders
-    for sub_folder in sorted(root.glob("sub-*")):
-        sub_id = sub_folder.name
-        filedict[sub_id] = {}
-
-        # look for all session folders under each subject
-        for ses_folder in sorted(sub_folder.glob("ses-*")):
-            ses_id = ses_folder.name
-            filedict[sub_id][ses_id] = {}
-
-            # each immediate subdirectory is a “datatype”
-            for dtype_folder in sorted(p for p in ses_folder.iterdir() if p.is_dir()):
-                dtype = dtype_folder.name
-                # gather all files under that folder
-                files = sorted(f for f in dtype_folder.rglob("*") if f.is_file())
-                filedict[sub_id][ses_id][dtype] = files
-
-    return filedict
 
 
-root = Path("E:/sbaskar/2408_SU24_F31/processed")
-filedict = build_experiment_filedict(root)
-
-# e.g.:
-#print(filedict["sub-SB03"]["ses-01"]["suite2p"])
-# → [Path('E:/sbaskar/2408_SU24_F31/sub-00/ses-00/suite2p/iscell.npy'),
-#    Path('E:/sbaskar/2408_SU24_F31/sub-00/ses-00/suite2p/F.npy'),
-#    …]
-
-# %%
-import pandas as pd
-
-rows = []
-for sub, ses_dict in filedict.items():
-    for ses, dtype_dict in ses_dict.items():
-        for dtype, paths in dtype_dict.items():
-            for p in paths:
-                rows.append({"subject": sub,
-                             "session": ses,
-                             "datatype": dtype,
-                             "filepath": str(p)})
-
-df = pd.DataFrame(rows)
-df = df.set_index(["subject", "session", "datatype"])
-
-# %%
-def make_wide_df(long_df: pd.DataFrame) -> pd.DataFrame:
-    # Group and collect each group of filepaths into a list
-    grouped = (
-        long_df
-        .groupby(["subject", "session", "datatype"])["filepath"]
-        .apply(list)
-    )
-    # Unstack the last level (“datatype”) so it becomes columns
-    wide = grouped.unstack("datatype").sort_index(axis=1)
-    return wide
 
 
 #%%
@@ -132,17 +47,20 @@ print("active_rois_only:", active_rois_only)
 
 #%%
 from py2p.dataset import ExperimentData
+from pathlib import Path
 
 root = Path(DATA_DIR)
 data = ExperimentData(root)
 
-def test_load(path):
+def load_modality(path):
     return path
 
 loaders = {
-    "beh": test_load,
-    "func": test_load,
-    "pupil": test_load
+    "beh": load_modality,
+    "roi_fluorescence": load_modality, 
+    "neuropil_fluorescence": load_modality,
+    "cell_identifier": load_modality,
+    "pupil": load_modality
 }
 
 data.load(loaders)
@@ -157,7 +75,7 @@ def my_cool_function(num1, num2):
 
 
 pd.DataFrame.apply
-
+database['roi_fluorescence'].apply(lambda path: np.load(path, allow_pickle = True))
 
 lambda variable_as_argument: print(variable_as_argument) if variable_as_argument > 0 else None
 

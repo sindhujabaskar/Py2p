@@ -22,7 +22,9 @@ from typing import List, Dict
 # Mapping of modality keys to glob patterns
 MODALITY_PATTERNS: Dict[str, List[str]] = {
     "beh": ["*_wheeldf.csv"],
-    "func": ["*.npy"],
+    'roi_fluorescence': ['*F.npy'], # np.ndarray(137, 6000) [rois, fluorescence_by_frame]
+    'neuropil_fluorescence': ['*Fneu.npy'], # np.ndarray(137, 6000) [rois, fluorescence_by_frame]
+    'cell_identifier' : ['*iscell.npy'], # np.ndarray(137, 1) [rois, boolean_label] 
     "pupil": ["*.pickle"]
 }
 
