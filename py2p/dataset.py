@@ -4,7 +4,7 @@ Defines ExperimentData for integrated BIDS data management.
 import pandas as pd
 from pathlib import Path
 from typing import Callable, Dict, List
-from file_path_finder import find_files
+from py2p.file_path_finder import find_files
 
 def make_multiindex(paths: List[Path]) -> pd.MultiIndex:
     """
@@ -42,16 +42,17 @@ class ExperimentData:
         """
         series_list = []
         for modality, loader in loaders.items():
-            file_paths = find_files(self.root, modality)
-            idx = make_multiindex(file_paths)
+            file_paths = find_files(self.root, modality) # find all files in the root directory that match the modality
+            idx = make_multiindex(file_paths) # create a MultiIndex from the file paths
             series = pd.Series(file_paths, index=idx, name="filepath")
             loaded = series.map(loader)
             loaded.name = modality
             series_list.append(loaded)
-        self._df = pd.concat(series_list, axis=1)
+        self._df = pd.concat(series_list, axis=1) # combine all modality data into a single DataFrame
         return self._df
 
     @property
     def df(self) -> pd.DataFrame:
         """Return the DataFrame containing all loaded experimental data across subjects and sessions."""
         return self._df
+        

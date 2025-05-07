@@ -14,6 +14,11 @@ def load_suite2p_outputs(directory_path):
             loaded_data_files[key] = np.load(file, allow_pickle = True)
     return loaded_data_files
 
+def np_loader(file_path: str) -> np.ndarray: #trying to add index keys to the loader function so that the files can be called via keys later on
+    for key, value in SUITE2P_FILE_PATTERNS.items():
+        file_path[key] = pd.Series(file_path, name="filepath")
+    return np.load(file_path, allow_pickle=True)   
+
 def create_roi_dataframe(loaded_data: dict) -> pd.DataFrame:
     """
     Builds a DataFrame where each row is one ROI and columns hold:

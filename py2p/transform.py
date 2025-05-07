@@ -50,7 +50,7 @@ def interpolate_roi(filtered_roi, offset_frames=81, original_rate=9.865, target_
     
     # Determine the number of frames in the ROI data.
     # Assuming filtered_roi is of shape (num_rois, num_frames)
-    num_frames = filtered_roi.shape[1]
+    num_frames = filtered_roi['roi_fluorescence'][0].size
     
     # Adjust the number of frames to account for the offset.
     new_number_frames = num_frames - offset_frames
@@ -65,7 +65,7 @@ def interpolate_roi(filtered_roi, offset_frames=81, original_rate=9.865, target_
     cs = scipy.interpolate.CubicSpline(old_time_vector, filtered_roi, axis=1)
     interpolated_roi = cs(new_time_vector)
     
-    return interpolated_roi #, old_time_vector, new_time_vector
+    return interpolated_roi
 
 def smooth_dff(dff_data, smoothing_kernel=3):
     """
