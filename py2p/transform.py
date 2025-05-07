@@ -13,7 +13,7 @@ def filter_data_by_boolean(suite2p_dataframe):
     Returns:
     pd.DataFrame: Filtered ROIs and neuropil fluorescence by is_cell boolean.
     """
-    filtered_data = suite2p_dataframe.loc[suite2p_dataframe['is_cell']]
+    filtered_data = suite2p_dataframe.loc[suite2p_dataframe['cell_identifier']]
     assert filtered_data.shape[0] == np.sum(suite2p_dataframe['is_cell']), "Filtered data shape does not match the number of true cells."
     return filtered_data #dataframe containing only the true cells for both roi and neuropil fluorescence
 
@@ -35,7 +35,7 @@ def interpolate_roi(filtered_roi, offset_frames=81, original_rate=9.865, target_
     Returns
     -------
     interpolated_roi : np.ndarray
-        A numpy array with the interpolated data having the same shape as filtered_roi.
+        A numpy array with the interpolated data having the same shape as filtered_roi. 
     old_time_vector : np.ndarray
         The original time vector based on the provided original_rate.
     new_time_vector : np.ndarray
