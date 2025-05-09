@@ -6,6 +6,42 @@ from py2p.plot import plot_onething
 from py2p.config import DATA_DIR
 from py2p.dataset import ExperimentData
 from pathlib import Path
+
+#%%
+from py2p.config import DATA_DIR
+from py2p.dataset import ExperimentData
+
+from pathlib import Path
+import numpy as np
+import pandas as pd
+
+root = Path(DATA_DIR)
+data = ExperimentData(root)
+
+def load_modality(path):
+    return path
+
+loaders = {
+    "psychopy" : load_modality,
+    "beh": load_modality,
+    "roi_fluorescence": load_modality, 
+    "neuropil_fluorescence": load_modality,
+    "cell_identifier": load_modality,
+    "pupil": load_modality
+}
+
+data.load(loaders)
+database = data.df
+#%%
+from py2p.transform import filter_cells_iter, create_dataframe, array_loader
+
+roi_f = array_loader(database, 'roi_fluorescence')
+neuropil_f = array_loader(database, 'neuropil_fluorescence')
+is_cell = array_loader(database, 'cell_identifier')
+
+df = create_dataframe(roi_f, neuropil_f, is_cell)
+filtered_df = filter_cells_iter(df)
+
 #%%
 
 root = Path(DATA_DIR)
@@ -45,27 +81,6 @@ active_rois_only = active_rois(roi_dff)
 print("active_rois_only:", active_rois_only)
 
 
-#%%
-from py2p.dataset import ExperimentData
-from pathlib import Path
-
-root = Path(DATA_DIR)
-data = ExperimentData(root)
-
-def load_modality(path):
-    return path
-
-loaders = {
-    "beh": load_modality,
-    "roi_fluorescence": load_modality, 
-    "neuropil_fluorescence": load_modality,
-    "cell_identifier": load_modality,
-    "pupil": load_modality
-}
-
-data.load(loaders)
-database = data.df
-database
 
 
 # %% What is LAMBDA?????
@@ -75,7 +90,7 @@ def my_cool_function(num1, num2):
 
 
 pd.DataFrame.apply
-database['roi_fluorescence'].apply(lambda path: np.load(path, allow_pickle = True))
+database['key'].apply(lambda path: np.load(path, allow_pickle = True))
 
 lambda variable_as_argument: print(variable_as_argument) if variable_as_argument > 0 else None
 

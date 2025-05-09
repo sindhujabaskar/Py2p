@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.interpolate
+import pandas as pd
 
-""
 
 def filter_data_by_boolean(suite2p_dataframe):
     """
@@ -13,7 +13,7 @@ def filter_data_by_boolean(suite2p_dataframe):
     Returns:
     pd.DataFrame: Filtered ROIs and neuropil fluorescence by is_cell boolean.
     """
-    filtered_data = suite2p_dataframe.loc[suite2p_dataframe['cell_identifier']]
+    filtered_data = suite2p_dataframe.loc[suite2p_dataframe['is_cell']]
     assert filtered_data.shape[0] == np.sum(suite2p_dataframe['is_cell']), "Filtered data shape does not match the number of true cells."
     return filtered_data #dataframe containing only the true cells for both roi and neuropil fluorescence
 
@@ -35,7 +35,7 @@ def interpolate_roi(filtered_roi, offset_frames=81, original_rate=9.865, target_
     Returns
     -------
     interpolated_roi : np.ndarray
-        A numpy array with the interpolated data having the same shape as filtered_roi. 
+        A numpy array with the interpolated data having the same shape as filtered_roi.
     old_time_vector : np.ndarray
         The original time vector based on the provided original_rate.
     new_time_vector : np.ndarray
@@ -93,6 +93,7 @@ def smooth_dff(dff_data, smoothing_kernel=3):
     return smoothed_roi_dff
 
 def active_rois(filtered_roi, min_prominence=-.5, min_distance=3):
+
     """
     Identifies active ROIs based on the dFF data.
 
@@ -115,3 +116,33 @@ def active_rois(filtered_roi, min_prominence=-.5, min_distance=3):
         roi_events, _ = scipy.signal.find_peaks(filtered_roi[roi], prominence = min_prominence, distance = min_distance)
         active_rois[roi,0] = len(roi_events)
     return active_rois
+
+def array_loader(database: pd.DataFrame, column_name: str = 'modality') -> pd.Series:
+    return database[column_name].apply(lambda path: np.load(path, allow_pickle=True))
+
+def create_dataframe(roi_f, neuropil_f, is_cell):
+    all_f = {'roi_f': roi_f, 'neuropil_f': neuropil_f, 'is_cell': is_cell}
+    df = pd.concat(all_f, axis=1)
+    return df
+
+def filter_cells_iter(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Loop through each index tuple, build up lists of filtered arrays, and reassemble.
+    """
+    records = []
+    for (subj, sess), row in df.iterrows():
+        mask = row["is_cell"][:, 0].astype(bool)
+        records.append({
+            "Subject"     : subj,
+            "Session"     : sess,
+            "roi_f"       : row["roi_f"][mask],
+            "neuropil_f"  : row["neuropil_f"][mask],
+            "is_cell"     : row["is_cell"][mask]
+        })
+
+    # Build back into a DataFrame
+    out = pd.DataFrame(records)
+    out = out.set_index(["Subject","Session"])
+    return out
+
+

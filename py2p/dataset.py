@@ -55,4 +55,30 @@ class ExperimentData:
     def df(self) -> pd.DataFrame:
         """Return the DataFrame containing all loaded experimental data across subjects and sessions."""
         return self._df
-        
+    @property
+    def raw_fluorescence(self) -> pd.Series:
+        """Return the raw fluorescence data."""
+        return self.df['roi_fluorescence']
+    
+    @property
+    def neuropil_fluorescence(self) -> pd.Series:
+        """Return the neuropil fluorescence data."""
+        return self.df['neuropil_fluorescence']
+    
+    @property
+    def cell_identifier(self) -> pd.Series:
+        """Return the cell identifier data."""
+        return self.df['cell_identifier']
+    
+    @property
+    def beh(self) -> pd.Series:
+        """Return the pupil data."""
+        return self.df['pupil']
+
+
+    def pickle_to_df(pickle_path) -> pd.DataFrame:
+        """
+        Load a DeepLabCut output pickle file and return raw data in a pandas DataFrame.
+        """ 
+        df = pd.DataFrame(pd.read_pickle(pickle_path))
+        return df
