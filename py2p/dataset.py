@@ -4,7 +4,7 @@ Defines ExperimentData for integrated BIDS data management.
 import pandas as pd
 from pathlib import Path
 from typing import Callable, Dict, List
-from py2p.file_path_finder import find_files
+from py2p.load import find_files
 
 def make_multiindex(paths: List[Path]) -> pd.MultiIndex:
     """
@@ -55,6 +55,7 @@ class ExperimentData:
     def df(self) -> pd.DataFrame:
         """Return the DataFrame containing all loaded experimental data across subjects and sessions."""
         return self._df
+    
     @property
     def raw_fluorescence(self) -> pd.Series:
         """Return the raw fluorescence data."""

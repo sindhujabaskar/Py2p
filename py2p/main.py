@@ -1,46 +1,68 @@
 #%%
 from py2p.io import load_suite2p_outputs, create_roi_dataframe
 from py2p.transform import filter_data_by_boolean, interpolate_roi, smooth_dff, active_rois
-from py2p.calculate import calculate_baseline, calculate_dff
+from py2p.process import calculate_baseline, calculate_dff
 from py2p.plot import plot_onething
 from py2p.config import DATA_DIR
 from py2p.dataset import ExperimentData
 from pathlib import Path
 
 #%%
-from py2p.config import DATA_DIR
-from py2p.dataset import ExperimentData
+# Load the data into a multiindex dataframe
 
 from pathlib import Path
 import numpy as np
 import pandas as pd
+from py2p.config import DATA_DIR
+from py2p.dataset import ExperimentData
+from py2p.load import load_path, array_loader, csv_loader
 
 root = Path(DATA_DIR)
 data = ExperimentData(root)
-
-def load_modality(path):
-    return path
-
-loaders = {
-    "psychopy" : load_modality,
-    "beh": load_modality,
-    "roi_fluorescence": load_modality, 
-    "neuropil_fluorescence": load_modality,
-    "cell_identifier": load_modality,
-    "pupil": load_modality
+#%%
+path_loaders = {
+    "psychopy" : load_path,
+    "beh": load_path,
+    "roi_fluorescence": load_path, 
+    "neuropil_fluorescence": load_path,
+    "cell_identifier": load_path,
+    "pupil": load_path
 }
 
-data.load(loaders)
+data.load(path_loaders)
 database = data.df
 #%%
-from py2p.transform import filter_cells_iter, create_dataframe, array_loader
+load_modality = {
+    "psychopy" : csv_loader,
+    "beh": csv_loader,
+    "roi_fluorescence": array_loader, 
+    "neuropil_fluorescence": array_loader,
+    "cell_identifier": array_loader,
+    "pupil": csv_loader
+}
 
+data.load(load_modality)
+database = data.df
+    
+#%%
+# Process the data
+
+from py2p.transform import filter_cells
+from py2p.load import create_dataframe, array_loader
+from py2p.process import calculate_baseline
+
+# index just suite2p outputs from database
 roi_f = array_loader(database, 'roi_fluorescence')
 neuropil_f = array_loader(database, 'neuropil_fluorescence')
 is_cell = array_loader(database, 'cell_identifier')
 
+# concatenate suite2p outputs into a single multiindex dataframe
 df = create_dataframe(roi_f, neuropil_f, is_cell)
-filtered_df = filter_cells_iter(df)
+
+#
+filtered_df = filter_cells(df)
+baseline = calculate_baseline(filtered_df, 3)
+
 
 #%%
 

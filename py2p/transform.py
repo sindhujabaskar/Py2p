@@ -117,32 +117,25 @@ def active_rois(filtered_roi, min_prominence=-.5, min_distance=3):
         active_rois[roi,0] = len(roi_events)
     return active_rois
 
-def array_loader(database: pd.DataFrame, column_name: str = 'modality') -> pd.Series:
-    return database[column_name].apply(lambda path: np.load(path, allow_pickle=True))
 
-def create_dataframe(roi_f, neuropil_f, is_cell):
-    all_f = {'roi_f': roi_f, 'neuropil_f': neuropil_f, 'is_cell': is_cell}
-    df = pd.concat(all_f, axis=1)
+def filter_cells(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Filters the 'roi_f' and 'neuropil_f' columns based on the boolean mask in 'is_cell'.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        MultiIndexed by ['Subject', 'Session'], with columns 'roi_f', 'neuropil_f', and 'is_cell'.
+
+    Returns
+    -------
+    pd.DataFrame
+        MultiIndexed by ['Subject', 'Session'], with filtered 'roi_f', 'neuropil_f', and 'is_cell'.
+    """
+    # Apply the boolean mask from 'is_cell' to filter 'roi_f' and 'neuropil_f'
+    df['roi_f'] = df.apply(lambda row: row['roi_f'][row['is_cell'][:, 0].astype(bool)], axis=1)
+    df['neuropil_f'] = df.apply(lambda row: row['neuropil_f'][row['is_cell'][:, 0].astype(bool)], axis=1)
+    df['is_cell'] = df.apply(lambda row: row['is_cell'][row['is_cell'][:, 0].astype(bool)], axis=1)
+
     return df
-
-def filter_cells_iter(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Loop through each index tuple, build up lists of filtered arrays, and reassemble.
-    """
-    records = []
-    for (subj, sess), row in df.iterrows():
-        mask = row["is_cell"][:, 0].astype(bool)
-        records.append({
-            "Subject"     : subj,
-            "Session"     : sess,
-            "roi_f"       : row["roi_f"][mask],
-            "neuropil_f"  : row["neuropil_f"][mask],
-            "is_cell"     : row["is_cell"][mask]
-        })
-
-    # Build back into a DataFrame
-    out = pd.DataFrame(records)
-    out = out.set_index(["Subject","Session"])
-    return out
-
 
