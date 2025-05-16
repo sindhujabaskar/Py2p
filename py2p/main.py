@@ -1,4 +1,4 @@
-#%%
+# %%
 from py2p.io import load_suite2p_outputs, create_roi_dataframe
 from py2p.transform import filter_data_by_boolean, interpolate_roi, smooth_dff, active_rois
 from py2p.process import calculate_baseline, calculate_dff
@@ -7,7 +7,7 @@ from py2p.config import DATA_DIR
 from py2p.dataset import ExperimentData
 from pathlib import Path
 
-#%%
+# %%
 # Load the data into a multiindex dataframe
 
 from pathlib import Path
@@ -15,11 +15,13 @@ import numpy as np
 import pandas as pd
 from py2p.config import DATA_DIR
 from py2p.dataset import ExperimentData
-from py2p.load import load_path, array_loader, csv_loader
+from py2p.load import load_path
+import py2p.load as load
 
 root = Path(DATA_DIR)
 data = ExperimentData(root)
-#%%
+
+# %%
 path_loaders = {
     "psychopy" : load_path,
     "beh": load_path,
@@ -30,21 +32,20 @@ path_loaders = {
 }
 
 data.load(path_loaders)
-database = data.df
-#%%
+# %%
 load_modality = {
-    "psychopy" : csv_loader,
-    "beh": csv_loader,
-    "roi_fluorescence": array_loader, 
-    "neuropil_fluorescence": array_loader,
-    "cell_identifier": array_loader,
-    "pupil": csv_loader
+    "psychopy" : pd.read_csv,
+    "beh": pd.read_csv,
+    "roi_fluorescence": lambda file: np.load(file, allow_pickle=True), 
+    "neuropil_fluorescence": lambda file: np.load(file, allow_pickle=True),
+    "cell_identifier": lambda file: np.load(file, allow_pickle=True),
+    "pupil": load.deeplabcut_pickle
 }
 
 data.load(load_modality)
 database = data.df
-    
-#%%
+
+# %%
 # Process the data
 
 from py2p.transform import filter_cells
@@ -63,8 +64,7 @@ df = create_dataframe(roi_f, neuropil_f, is_cell)
 filtered_df = filter_cells(df)
 baseline = calculate_baseline(filtered_df, 3)
 
-
-#%%
+# %%
 
 root = Path(DATA_DIR)
 data = ExperimentData(root)

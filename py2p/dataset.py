@@ -2,6 +2,7 @@
 Defines ExperimentData for integrated BIDS data management.
 """
 import pandas as pd
+import numpy as np
 from pathlib import Path
 from typing import Callable, Dict, List
 from py2p.load import find_files
@@ -29,12 +30,10 @@ class ExperimentData:
     def load(self, loaders: Dict[str, Callable[[Path], object]]) -> pd.DataFrame: 
         """
         Batch-apply modality-specific loaders and assemble a unified DataFrame.
-
         Parameters
         ----------
         loaders : dict
             Mapping from modality keys to loader callables.
-
         Returns
         -------
         pd.DataFrame
@@ -50,10 +49,11 @@ class ExperimentData:
             series_list.append(loaded)
         self._df = pd.concat(series_list, axis=1) # combine all modality data into a single DataFrame
         return self._df
-
+    
     @property
     def df(self) -> pd.DataFrame:
         """Return the DataFrame containing all loaded experimental data across subjects and sessions."""
+
         return self._df
     
     @property
@@ -75,7 +75,6 @@ class ExperimentData:
     def beh(self) -> pd.Series:
         """Return the pupil data."""
         return self.df['pupil']
-
 
     def pickle_to_df(pickle_path) -> pd.DataFrame:
         """
