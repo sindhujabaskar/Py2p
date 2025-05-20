@@ -26,8 +26,14 @@ def find_files(root: Path, modality: str) -> List[Path]:
         file_list.extend(root.rglob(pattern))
     return sorted(file_list)
 
-def load_path(path):
+def file_path(path):
     return path
+
+def suite2p_npy(path) -> pd.Series:
+    return np.load(path, allow_pickle=True)
+
+def beh_csv(path) -> pd.Series:
+    return pd.read_csv(path)
 
 def deeplabcut_pickle(filepath: Path) -> pd.DataFrame:
     """

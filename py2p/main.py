@@ -7,62 +7,63 @@ from py2p.config import DATA_DIR
 from py2p.dataset import ExperimentData
 from pathlib import Path
 
-# %%
-# Load the data into a multiindex dataframe
-
+# %% Load imports
 from pathlib import Path
 import numpy as np
 import pandas as pd
 from py2p.config import DATA_DIR
 from py2p.dataset import ExperimentData
-from py2p.load import load_path
 import py2p.load as load
 
+#  Load in ExperimentData class
 root = Path(DATA_DIR)
 data = ExperimentData(root)
 
-# %%
-path_loaders = {
-    "psychopy" : load_path,
-    "beh": load_path,
-    "roi_fluorescence": load_path, 
-    "neuropil_fluorescence": load_path,
-    "cell_identifier": load_path,
-    "pupil": load_path
-}
+#  Load paths into the data structure for quick review
+# path_loaders = {
+#     "psychopy" : load.file_path,
+#     "beh": load.file_path,
+#     "roi_fluorescence": load.file_path, 
+#     "neuropil_fluorescence": load.file_path,
+#     "cell_identifier": load.file_path,
+#     "pupil": load.file_path
+# }
+# data.load(path_loaders)
 
-data.load(path_loaders)
-# %%
+
+#  Modality-specific data loaders into multiindex dataframe
+# Takes a few seconds to run
+
 load_modality = {
-    "psychopy" : pd.read_csv,
-    "beh": pd.read_csv,
-    "roi_fluorescence": lambda file: np.load(file, allow_pickle=True), 
-    "neuropil_fluorescence": lambda file: np.load(file, allow_pickle=True),
-    "cell_identifier": lambda file: np.load(file, allow_pickle=True),
+    "psychopy" : load.beh_csv,
+    "beh": load.beh_csv,
+    "roi_fluorescence": load.suite2p_npy, 
+    "neuropil_fluorescence": load.suite2p_npy,
+    "cell_identifier": load.suite2p_npy,
     "pupil": load.deeplabcut_pickle
 }
 
 data.load(load_modality)
 database = data.df
-
-# %%
+# 
 # Process the data
-
 from py2p.transform import filter_cells
-from py2p.load import create_dataframe, array_loader
-from py2p.process import calculate_baseline
+import py2p.process as process
+# database.get(['roi_fluorescence', 'neuropil_fluorescence', 'cell_identifier'])
 
-# index just suite2p outputs from database
-roi_f = array_loader(database, 'roi_fluorescence')
-neuropil_f = array_loader(database, 'neuropil_fluorescence')
-is_cell = array_loader(database, 'cell_identifier')
+#%% STAYING SANE (?)
+# Filter the data by boolean 'is_cell'
+database['roi_fluorescence'] = database.apply(lambda row: row['roi_fluorescence'][row['cell_identifier'][:, 0].astype(bool)], axis=1)
+database['neuropil_fluorescence'] = database.apply(lambda row: row['neuropil_fluorescence'][row['cell_identifier'][:, 0].astype(bool)], axis=1)
+database['cell_identifier'] = database.apply(lambda row: row['cell_identifier'][row['cell_identifier'][:, 0].astype(bool)], axis=1)
 
-# concatenate suite2p outputs into a single multiindex dataframe
-df = create_dataframe(roi_f, neuropil_f, is_cell)
+# calculate the specified percentile along each roi's raw fluorescence 
+percentile = 3 
+database['baseline_percentile'] = database['roi_fluorescence'].apply(lambda x: np.percentile(x, percentile, axis =1, keepdims=True)) 
 
-#
-filtered_df = filter_cells(df)
-baseline = calculate_baseline(filtered_df, 3)
+#calculate the dF/F values for each ROI based on the raw fluorescence and baseline fluorescence
+database['deltaf_f'] = database['roi_fluorescence'].combine(database['baseline_percentile'], 
+                                 lambda raw, baseline: (raw - baseline) / baseline)
 
 # %%
 
@@ -106,6 +107,7 @@ print("active_rois_only:", active_rois_only)
 
 
 # %% What is LAMBDA?????
+
 
 def my_cool_function(num1, num2):
     return num1 + num2
