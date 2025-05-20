@@ -19,7 +19,7 @@ ExperimentRoot/
     └── sub-02/
 """
 
-DATA_DIR = r"E:\sbaskar\2408_SU24_F31"
+DATA_DIR = r"D:\2408_SU24_F31"
 
 # Mapping of modality keys to glob patterns
 MODALITY_PATTERNS: Dict[str, List[str]] = {
@@ -30,3 +30,6 @@ MODALITY_PATTERNS: Dict[str, List[str]] = {
     'cell_identifier' : ['*iscell.npy'], # np.ndarray(137, 1) [rois, boolean_label] 
     "pupil": ["*.pickle"]
 }
+
+two_photon_frame_rate = 9.865 # Hz
+

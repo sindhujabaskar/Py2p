@@ -53,7 +53,6 @@ class ExperimentData:
     @property
     def df(self) -> pd.DataFrame:
         """Return the DataFrame containing all loaded experimental data across subjects and sessions."""
-
         return self._df
     
     @property
@@ -75,10 +74,3 @@ class ExperimentData:
     def beh(self) -> pd.Series:
         """Return the pupil data."""
         return self.df['pupil']
-
-    def pickle_to_df(pickle_path) -> pd.DataFrame:
-        """
-        Load a DeepLabCut output pickle file and return raw data in a pandas DataFrame.
-        """ 
-        df = pd.DataFrame(pd.read_pickle(pickle_path))
-        return df

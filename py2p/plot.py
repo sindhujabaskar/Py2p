@@ -23,3 +23,5 @@ def plot_twothings(data, data2):
     plt.ylabel("Y-axis")
     plt.show()
     return plt
+
+import plotly.express as px
