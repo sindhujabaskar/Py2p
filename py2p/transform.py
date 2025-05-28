@@ -120,22 +120,29 @@ def active_rois(filtered_roi, min_prominence=-.5, min_distance=3):
 
 def filter_cells(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Filters the 'roi_f' and 'neuropil_f' columns based on the boolean mask in 'is_cell'.
+    Filters the 'roi_fluorescence' and 'neuropil_fluorescence' columns based on the boolean mask in 'cell_identifier'.
 
     Parameters
     ----------
     df : pd.DataFrame
-        MultiIndexed by ['Subject', 'Session'], with columns 'roi_f', 'neuropil_f', and 'is_cell'.
+        MultiIndexed by ['Subject', 'Session'], with columns 'roi_fluorescence', 'neuropil_fluorescence', and 'cell_identifier'.
 
     Returns
     -------
     pd.DataFrame
-        MultiIndexed by ['Subject', 'Session'], with filtered 'roi_f', 'neuropil_f', and 'is_cell'.
+        MultiIndexed by ['Subject', 'Session'], with filtered 'roi_fluorescence', 'neuropil_fluorescence'.
     """
     # Apply the boolean mask from 'is_cell' to filter 'roi_f' and 'neuropil_f'
-    df['roi_f'] = df.apply(lambda row: row['roi_f'][row['is_cell'][:, 0].astype(bool)], axis=1)
-    df['neuropil_f'] = df.apply(lambda row: row['neuropil_f'][row['is_cell'][:, 0].astype(bool)], axis=1)
-    df['is_cell'] = df.apply(lambda row: row['is_cell'][row['is_cell'][:, 0].astype(bool)], axis=1)
+    df['roi_fluorescence'] = df.apply(lambda row: row['roi_fluorescence'][row['cell_identifier'][:, 0].astype(bool)], axis=1)
+    df['neuropil_fluorescence'] = df.apply(lambda row: row['neuropil_fluorescence'][row['cell_identifier'][:, 0].astype(bool)], axis=1)
+    df['cell_identifier'] = df.apply(lambda row: row['cell_identifier'][row['cell_identifier'][:, 0].astype(bool)], axis=1)
 
     return df
+
+def append_time_index(arr):
+    """
+    Appends a time index row to a 2D numpy array of shape (n, 6000).
+    """
+    time_index = np.arange(0, 6000) * (1/10)
+    return np.vstack([arr, time_index])
 

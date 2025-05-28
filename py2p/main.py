@@ -1,11 +1,3 @@
-# %%
-from py2p.io import load_suite2p_outputs, create_roi_dataframe
-from py2p.transform import filter_data_by_boolean, interpolate_roi, smooth_dff, active_rois
-from py2p.process import calculate_baseline, calculate_dff
-from py2p.plot import plot_onething
-from py2p.config import DATA_DIR
-from py2p.dataset import ExperimentData
-from pathlib import Path
 
 # %% Load imports
 from pathlib import Path
@@ -30,7 +22,6 @@ data = ExperimentData(root)
 # }
 # data.load(path_loaders)
 
-
 #  Modality-specific data loaders into multiindex dataframe
 # Takes a few seconds to run
 
@@ -45,11 +36,6 @@ load_modality = {
 
 data.load(load_modality)
 database = data.df
-# 
-# Process the data
-from py2p.transform import filter_cells
-import py2p.process as process
-# database.get(['roi_fluorescence', 'neuropil_fluorescence', 'cell_identifier'])
 
 #%% STAYING SANE (?)
 # Filter the data by boolean 'is_cell'
@@ -64,6 +50,42 @@ database['baseline_percentile'] = database['roi_fluorescence'].apply(lambda x: n
 #calculate the dF/F values for each ROI based on the raw fluorescence and baseline fluorescence
 database['deltaf_f'] = database['roi_fluorescence'].combine(database['baseline_percentile'], 
                                  lambda raw, baseline: (raw - baseline) / baseline)
+#%%
+#create a time index for the dF/F values
+from py2p.transform import append_time_index
+database['time_vector'] = database['roi_fluorescence'].apply(append_time_index)
+#%%
+#if interpolation from 9.865 to 10 is needed... 
+import scipy.interpolate
+database['interpolated'] = database.apply(lambda row: scipy.interpolate.CubicSpline(np.linspace(0,(row['roi_fluorescence'].shape[1] - 81) / 9.865,
+    row['roi_fluorescence'].shape[1]), row['roi_fluorescence'],axis=1)(np.linspace(0,(row['roi_fluorescence'].shape[1] - 81) / 10,
+    row['roi_fluorescence'].shape[1]) ),axis=1)
+# %%
+#creates a new column with the relevant psychopy timestamps for trials
+database['trial_index'] = database.apply(lambda row: pd.DataFrame({'trial_num': row['psychopy']['trials.thisN'][1:],'display_gratings_started': 
+    row['psychopy']['display_gratings.started'][1:], 'display_gratings_stopped' : row['psychopy']['display_gratings.stopped'][1:]}),axis=1)
+#subtracts the first timestamp from all timestamps to create a time index starting at 0
+database['trial_index'] = database['trial_index'].apply(
+    lambda df: df.assign(display_gratings_started=df['display_gratings_started'] - df['display_gratings_started'].iloc[0].astype(int), display_gratings_stopped = df['display_gratings_stopped']- df['display_gratings_started'].iloc[0].astype(int))
+)
+# %%
+#casts the timestamps to integers and creates a tuple time vector for each trial
+database['trial_tuple'] = database['trial_index'].apply(
+    lambda df: list(zip(df['display_gratings_started'].astype(int), df['display_gratings_stopped'].astype(int)))
+)
+
+def deltaf_f_trials_as_dfs(row):
+    deltaf_f = row['deltaf_f']
+    timestamps = row['time_vector'][-1]  # last row is the timestamp index
+    dfs = []
+    for start, stop in row['trial_tuple']:
+        mask = (timestamps >= start) & (timestamps < stop)
+        trial_df = pd.DataFrame(deltaf_f[:, mask], columns=timestamps[mask])
+        dfs.append(trial_df)
+    return dfs
+
+database['deltaf_f_trials_df'] = database.apply(deltaf_f_trials_as_dfs, axis=1)
+
 
 # %%
 
