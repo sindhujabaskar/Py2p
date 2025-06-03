@@ -3,6 +3,25 @@ import scipy.interpolate
 import pandas as pd
 
 
+def append_time_index(arr):
+    """
+    Appends a time index row to a 2D numpy array of shape (n, 6000).
+    """
+    time_index = np.arange(0, 6000) * (1/10)
+    return np.vstack([arr, time_index])
+
+def trials(row):
+    deltaf_f = row['process','deltaf_f']
+    timestamps = row['transform','time_vector'][-1]  # last row is the timestamp index
+    dfs = []
+    for start, stop in row['transform','trial_tuple']:
+        mask = (timestamps >= start) & (timestamps < stop)
+        trial_df = pd.DataFrame(deltaf_f[:, mask], columns=timestamps[mask])
+        dfs.append(trial_df)
+    return dfs
+
+## OLD FUNCTIONS
+
 def filter_data_by_boolean(suite2p_dataframe):
     """
     Filters the ROIs and neuropil fluorescence based on the cell identifier.
@@ -138,11 +157,3 @@ def filter_cells(df: pd.DataFrame) -> pd.DataFrame:
     df['cell_identifier'] = df.apply(lambda row: row['cell_identifier'][row['cell_identifier'][:, 0].astype(bool)], axis=1)
 
     return df
-
-def append_time_index(arr):
-    """
-    Appends a time index row to a 2D numpy array of shape (n, 6000).
-    """
-    time_index = np.arange(0, 6000) * (1/10)
-    return np.vstack([arr, time_index])
-

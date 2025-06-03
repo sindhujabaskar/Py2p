@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from py2p.config import MODALITY_PATTERNS
 
+# Loader functions for finding filepaths and loading the functions for each modality
 def find_files(root: Path, modality: str) -> List[Path]:
     """
     Recursively find all files matching the given modality

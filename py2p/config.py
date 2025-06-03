@@ -19,7 +19,7 @@ ExperimentRoot/
     └── sub-02/
 """
 
-DATA_DIR = r"D:\2408_SU24_F31"
+DATA_DIR = r"C:\2408_SU24_F31"
 
 # Mapping of modality keys to glob patterns
 MODALITY_PATTERNS: Dict[str, List[str]] = {

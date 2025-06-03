@@ -157,5 +157,4 @@ def analyze_pupil_data(
 
     # 5) return DataFrame without the metadata NaN
     return pd.DataFrame({'pupil_diameter_mm': pupil_full.iloc[1:]})
-# %%
-#
+
