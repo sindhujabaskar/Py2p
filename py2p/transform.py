@@ -11,7 +11,7 @@ def append_time_index(arr):
     return np.vstack([arr, time_index])
 
 def trials(row):
-    deltaf_f = row['process','deltaf_f']
+    deltaf_f = row['process','interp_deltaf_f']
     timestamps = row['transform','time_vector'][-1]  # last row is the timestamp index
     dfs = []
     for start, stop in row['transform','trial_tuple']:
@@ -135,7 +135,6 @@ def active_rois(filtered_roi, min_prominence=-.5, min_distance=3):
         roi_events, _ = scipy.signal.find_peaks(filtered_roi[roi], prominence = min_prominence, distance = min_distance)
         active_rois[roi,0] = len(roi_events)
     return active_rois
-
 
 def filter_cells(df: pd.DataFrame) -> pd.DataFrame:
     """

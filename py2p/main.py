@@ -43,6 +43,9 @@ database = data.df
 database['filter','roi_fluorescence'] = database.apply(lambda row: row['roi_fluorescence'][row['cell_identifier'][:, 0].astype(bool)], axis=1)
 database['filter','neuropil_fluorescence'] = database.apply(lambda row: row['neuropil_fluorescence'][row['cell_identifier'][:, 0].astype(bool)], axis=1)
 
+# Subtract neuropil fluorescence from raw fluorescence
+database['process', 'neuropil_subtracted'] = database.apply(lambda row: row['filter','roi_fluorescence'] - (0.3*row['filter','neuropil_fluorescence']), axis =1)
+
 # calculate the specified percentile along each roi's raw fluorescence 
 percentile = 3 
 database['process','baseline_percentile'] = database['filter','roi_fluorescence'].apply(lambda x: np.percentile(x, percentile, axis =1, keepdims=True)) 
@@ -57,9 +60,17 @@ database['transform','interpolated'] = database.apply(lambda row: scipy.interpol
     row['roi_fluorescence'].shape[1]), row['roi_fluorescence'],axis=1)(np.linspace(0,(row['roi_fluorescence'].shape[1] - 81) / 10,
     row['roi_fluorescence'].shape[1]) ),axis=1)
 
+# calculate percentile along each roi's interpolated fluorescence
+percentile = 3 
+database['process','interp_percentile'] = database['transform','interpolated'].apply(lambda x: np.percentile(x, percentile, axis =1, keepdims=True)) 
+
+#calculate the dF/F values after interpolation
+database['process','interp_deltaf_f'] = database['transform','interpolated'].combine(database['process','interp_percentile'], 
+    lambda raw, baseline: (raw - baseline) / baseline)
+
 #create a time index for the dF/F values
 from py2p.transform import append_time_index, trials
-database['transform','time_vector'] = database['filter','roi_fluorescence'].apply(append_time_index)
+database['transform','time_vector'] = database['process','interp_deltaf_f'].apply(append_time_index)
 
 #creates a new column with the relevant psychopy timestamps for trials
 database['transform','trial_index'] = database.apply(lambda row: pd.DataFrame({'trial_num': row['psychopy']['trials.thisN'][1:],'display_gratings_started': 
