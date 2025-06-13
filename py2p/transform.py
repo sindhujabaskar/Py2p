@@ -8,7 +8,8 @@ def append_time_index(arr):
     Appends a time index row to a 2D numpy array of shape (n, 6000).
     """
     time_index = np.arange(0, 6000) * (1/10)
-    return np.vstack([arr, time_index])
+    np.vstack([arr, time_index])
+    return arr[-1, :]  # Return the last row which is the time index
 
 def trials(row):
     deltaf_f = row['process','interp_deltaf_f']

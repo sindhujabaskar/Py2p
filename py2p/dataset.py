@@ -73,4 +73,9 @@ class ExperimentData:
     @property
     def beh(self) -> pd.Series:
         """Return the pupil data."""
-        return self.df['pupil']
+        return self.df['analyze','pupil_diameter_mm']
+    
+    @property
+    def psychopy(self) -> pd.Series:
+        """Return the psychopy data."""
+        return self.df['psychopy']
