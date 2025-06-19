@@ -2,24 +2,15 @@ import numpy as np
 import scipy.interpolate
 import pandas as pd
 
-
-def append_time_index(arr):
-    """
-    Appends a time index row to a 2D numpy array of shape (n, 6000).
-    """
-    time_index = np.arange(0, 6000) * (1/10)
-    np.vstack([arr, time_index])
-    return arr[-1, :]  # Return the last row which is the time index
-
-def trials(row):
-    deltaf_f = row['process','interp_deltaf_f']
-    timestamps = row['transform','time_vector'][-1]  # last row is the timestamp index
-    dfs = []
-    for start, stop in row['transform','trial_tuple']:
-        mask = (timestamps >= start) & (timestamps < stop)
-        trial_df = pd.DataFrame(deltaf_f[:, mask], columns=timestamps[mask])
-        dfs.append(trial_df)
-    return dfs
+# def trials(row):
+#     deltaf_f = row['process','interp_deltaf_f']
+#     timestamps = row['transform','time_vector']  # last row is the timestamp index
+#     dfs = []
+#     for start, stop in row['transform','trial_tuple']:
+#         mask = (timestamps >= start) & (timestamps < stop)
+#         trial_df = pd.DataFrame(deltaf_f[:, mask], columns=timestamps[mask])
+#         dfs.append(trial_df)
+#     return dfs
 
 ## OLD FUNCTIONS
 

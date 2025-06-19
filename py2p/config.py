@@ -19,7 +19,7 @@ ExperimentRoot/
     └── sub-02/
 """
 
-DATA_DIR = r"C:\2408_SU24_F31"
+DATA_DIR = r"C:\dev\2408_SU24_F31"
 
 # Mapping of modality keys to glob patterns
 MODALITY_PATTERNS: Dict[str, List[str]] = {
@@ -31,5 +31,4 @@ MODALITY_PATTERNS: Dict[str, List[str]] = {
     "pupil": ["*.pickle"]
 }
 
-two_photon_frame_rate = 9.865 # Hz
 

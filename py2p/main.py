@@ -1,4 +1,3 @@
-
 # %%  LOAD DATA
 # Load imports
 from pathlib import Path
@@ -12,19 +11,6 @@ import matplotlib.pyplot as plt
 #  Load ExperimentData class
 root = Path(DATA_DIR)
 data = ExperimentData(root)
-
-#  Load paths into the data structure for quick review
-# path_loaders = {
-#     "psychopy" : load.file_path,
-#     "beh": load.file_path,
-#     "roi_fluorescence": load.file_path, 
-#     "neuropil_fluorescence": load.file_path,
-#     "cell_identifier": load.file_path,
-#     "pupil": load.file_path
-# }
-# data.load(path_loaders)
-
-#  Modality-specific data loaders into multiindex dataframe
 
 load_modality = {
     "psychopy" : load.beh_csv,
@@ -61,42 +47,46 @@ database['calculate','deltaf_f'] = database['filter','roi_fluorescence'].combine
 
 # interpolation from 9.865 Hz to 10 Hz
 import scipy.interpolate
-database['transform','interpolated'] = database.apply(lambda row: scipy.interpolate.CubicSpline(np.linspace(0,(row['filter','roi_fluorescence'].shape[1] - 81) / 9.865,
+database['calculate','interpolated'] = database.apply(lambda row: scipy.interpolate.CubicSpline(np.linspace(0,(row['filter','roi_fluorescence'].shape[1] - 81) / 9.865,
     row['filter','roi_fluorescence'].shape[1]), row['filter','roi_fluorescence'],axis=1)(np.linspace(0,(row['filter','roi_fluorescence'].shape[1] - 81) / 10,
     row['filter','roi_fluorescence'].shape[1]) ),axis=1)
 
 # calculate percentile along each roi's interpolated fluorescence
 percentile = 3 
-database['calculate','interp_percentile'] = database['transform','interpolated'].apply(lambda x: np.percentile(x, percentile, axis =1, keepdims=True)) 
+database['calculate','interp_percentile'] = database['calculate','interpolated'].apply(lambda x: np.percentile(x, percentile, axis =1, keepdims=True)) 
 
 #calculate the dF/F values after interpolation
-database['calculate','interp_deltaf_f'] = database['transform','interpolated'].combine(database['calculate','interp_percentile'], 
+database['calculate','interp_deltaf_f'] = database['calculate','interpolated'].combine(database['calculate','interp_percentile'], 
     lambda raw, baseline: (raw - baseline) / baseline)
 
-#create a time index for the dF/F values
-from py2p.transform import append_time_index, trials
-database['transform','time_vector'] = database['transform','interpolated'].apply(append_time_index)
+#create a 10Hz interpolated time vector
+database[('toolkit','timestamps')] = (database[('calculate','interpolated')].map(lambda arr: pd.Series(
+         np.arange(arr.shape[1]) * 0.1, name='time')))
 
 #creates a new column with the relevant psychopy timestamps for trials
-database['transform','trial_index'] = database.apply(lambda row: pd.DataFrame({'trial_num': row['raw','psychopy']['trials.thisN'][1:],'display_gratings_started': 
+database['toolkit','trial_index'] = database.apply(lambda row: pd.DataFrame({'trial_num': row['raw','psychopy']['trials.thisN'][1:],'display_gratings_started': 
     row['raw','psychopy']['display_gratings.started'][1:], 'display_gratings_stopped' : row['raw','psychopy']['display_gratings.stopped'][1:]}),axis=1)
 
 #subtracts the first timestamp from all timestamps to create a data frame of start stop times per grating 
-database['transform','trial_times'] = database['transform','trial_index'].apply(
+database['toolkit','grat_on_off'] = database['toolkit','trial_index'].apply(
     lambda df: pd.DataFrame(list(
         zip(
             (df['display_gratings_started'] - df['display_gratings_started'].iloc[0].astype(int)).astype(int),
-            (df['display_gratings_stopped'] - df['display_gratings_started'].iloc[0].astype(int)).astype(int)
-        )
-    )
-, columns=['start', 'stop']))
+            (df['display_gratings_stopped'] - df['display_gratings_started'].iloc[0].astype(int)).astype(int))
+    ), columns=['start', 'stop']))
+
+database['toolkit','trials'] = database['toolkit','grat_on_off']
+
+#calculate the mean dF/F across all ROIs for each session
+database['analysis','mean_deltaf_f'] = database['calculate','interp_deltaf_f'].apply(lambda x: np.mean(x, axis=0))
+
 
 
 # use trial tuples to restructure the dF/F data into trials
 # database['transform','deltaf_f_trials'] = database.apply(trials, axis=1)
 
 # %% PUPIL DATA PROCESSING
-from py2p.calculate import analyze_pupil_data
+from py2p.process import analyze_pupil_data
 database['analysis','pupil_diameter_mm'] = database['raw','pupil'].apply(lambda x: analyze_pupil_data(x))
 
 

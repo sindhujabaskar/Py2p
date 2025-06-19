@@ -24,4 +24,5 @@ def plot_twothings(data, data2):
     plt.show()
     return plt
 
-import plotly.express as px
+# %%
+# plt.plot(database.toolkit.timestamps['sub-SB03','ses-01'],database.calculate.interp_deltaf_f['sub-SB03','ses-01'][77])
