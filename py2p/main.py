@@ -75,7 +75,7 @@ database['toolkit','grat_on_off'] = database['toolkit','trial_index'].apply(
             (df['display_gratings_stopped'] - df['display_gratings_started'].iloc[0].astype(int)).astype(int))
     ), columns=['start', 'stop']))
 
-database['toolkit','trials'] = database['toolkit','grat_on_off']
+
 
 #calculate the mean dF/F across all ROIs for each session
 database['analysis','mean_deltaf_f'] = database['calculate','interp_deltaf_f'].apply(lambda x: np.mean(x, axis=0))
