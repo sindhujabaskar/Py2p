@@ -2,6 +2,7 @@ import math
 import numpy as np
 import statistics as st
 import pandas as pd
+import scipy.signal as find_peaks
 
 def baseline_percentile(df: pd.DataFrame, percentile): # calculates the specified percentile along each roi's raw fluorescence to yield a baseline fluorescence value
     baseline_fluorescence = df['roi_fluorescence'].apply(lambda x: np.percentile(x, percentile, axis =1, keepdims=True)) # calculate the specified percentile along each roi's raw fluorescence
@@ -33,6 +34,30 @@ def deltaf_f(roi_f: pd.DataFrame, baseline_f: pd.DataFrame) -> pd.DataFrame:
 
     # Return a new DataFrame with the calculated dF/F values
     return pd.DataFrame({'dff': dff}, index=roi_f.index)
+
+def active_rois(roi_stack: np.ndarray,
+                      prominence: int = 2,
+                      distance: int = 3):
+    """
+    Parameters
+    ----------
+    roi_stack : np.ndarray, shape (n_rois, n_frames)
+        dF/F traces for each ROI.
+    prominence : float
+    distance   : int
+
+    Returns
+    -------
+    peak_counts : np.ndarray, shape (n_rois,)
+    is_active   : np.ndarray (bool), shape (n_rois,)
+    """
+    peak_counts = []
+    for trace in roi_stack:
+        peaks, _ = find_peaks(trace, prominence=prominence, distance=distance)
+        peak_counts.append(len(peaks))
+    peak_counts = np.array(peak_counts)
+    is_active   = peak_counts > 3 #num events required to be considered active
+    return peak_counts, is_active
 
 def euclidean_distance(coord1, coord2):
     """Calculate the Euclidean distance between two points."""

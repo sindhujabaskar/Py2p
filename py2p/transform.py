@@ -2,31 +2,31 @@ import numpy as np
 import scipy.interpolate
 import pandas as pd
 
-# def trials(row):
-#     deltaf_f = row['process','interp_deltaf_f']
-#     timestamps = row['transform','time_vector']  # last row is the timestamp index
-#     dfs = []
-#     for start, stop in row['transform','trial_tuple']:
-#         mask = (timestamps >= start) & (timestamps < stop)
-#         trial_df = pd.DataFrame(deltaf_f[:, mask], columns=timestamps[mask])
-#         dfs.append(trial_df)
-#     return dfs
+def trials(row):
+    import numpy as np
+
+    # grab inputs
+    deltaf_f   = np.asarray(row[('calculate', 'interp_deltaf_f')])  # (n_rois, n_times)
+    timestamps = np.asarray(row[('toolkit',   'timestamps')])      # (n_times,)
+    trial_df   = row[('toolkit',   'grat_on_off')]                  # DataFrame with 'start','stop'
+
+    all_trials = []
+    # loop over each start/stop pair
+    for trial_idx, (start, stop) in enumerate(zip(trial_df['start'], trial_df['stop'])):
+        mask       = (timestamps >= start) & (timestamps < stop)
+        time_slice = timestamps[mask]                 # (t,)
+        trial_data = deltaf_f[:, mask]                # (n_rois, t)
+
+        all_trials.append({
+            'trial': trial_idx,
+            'time':  time_slice,
+            'dff':   trial_data
+        })
+
+    return pd.DataFrame(all_trials)
 
 ## OLD FUNCTIONS
 
-def filter_data_by_boolean(suite2p_dataframe):
-    """
-    Filters the ROIs and neuropil fluorescence based on the cell identifier.
-    
-    Parameters:
-    suite2p_dataframe (pd.DataFrame)): pandasDataFrame containing suite2p outputs with row ROI, columns of roi_f, neuropil_f, and is_cell bool
-    
-    Returns:
-    pd.DataFrame: Filtered ROIs and neuropil fluorescence by is_cell boolean.
-    """
-    filtered_data = suite2p_dataframe.loc[suite2p_dataframe['is_cell']]
-    assert filtered_data.shape[0] == np.sum(suite2p_dataframe['is_cell']), "Filtered data shape does not match the number of true cells."
-    return filtered_data #dataframe containing only the true cells for both roi and neuropil fluorescence
 
 def interpolate_roi(filtered_roi, offset_frames=81, original_rate=9.865, target_rate=10):
     """
@@ -103,48 +103,4 @@ def smooth_dff(dff_data, smoothing_kernel=3):
     smoothed_roi_dff = np.array(smoothed_roi_dff)
     return smoothed_roi_dff
 
-def active_rois(filtered_roi, min_prominence=-.5, min_distance=3):
 
-    """
-    Identifies active ROIs based on the dFF data.
-
-    Parameters
-    ----------
-    filtered_roi : np.ndarray
-        A 2D numpy array of shape (num_rois, num_frames) representing the ROI data.
-    min_prominence : float, optional
-        The minimum prominence for peak detection (default is -0.5).
-    min_distance : int, optional
-        The minimum distance between peaks (default is 3).
-
-    Returns
-    -------
-    active_rois : np.ndarray
-        A boolean array indicating which ROIs are active.
-    """
-    active_rois = np.zeros(filtered_roi.shape[0], dtype=bool)
-    for roi in filtered_roi:
-        roi_events, _ = scipy.signal.find_peaks(filtered_roi[roi], prominence = min_prominence, distance = min_distance)
-        active_rois[roi,0] = len(roi_events)
-    return active_rois
-
-def filter_cells(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Filters the 'roi_fluorescence' and 'neuropil_fluorescence' columns based on the boolean mask in 'cell_identifier'.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        MultiIndexed by ['Subject', 'Session'], with columns 'roi_fluorescence', 'neuropil_fluorescence', and 'cell_identifier'.
-
-    Returns
-    -------
-    pd.DataFrame
-        MultiIndexed by ['Subject', 'Session'], with filtered 'roi_fluorescence', 'neuropil_fluorescence'.
-    """
-    # Apply the boolean mask from 'is_cell' to filter 'roi_f' and 'neuropil_f'
-    df['roi_fluorescence'] = df.apply(lambda row: row['roi_fluorescence'][row['cell_identifier'][:, 0].astype(bool)], axis=1)
-    df['neuropil_fluorescence'] = df.apply(lambda row: row['neuropil_fluorescence'][row['cell_identifier'][:, 0].astype(bool)], axis=1)
-    df['cell_identifier'] = df.apply(lambda row: row['cell_identifier'][row['cell_identifier'][:, 0].astype(bool)], axis=1)
-
-    return df
