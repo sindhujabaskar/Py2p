@@ -59,31 +59,34 @@ database['calculate','interp_percentile'] = database['calculate','interpolated']
 database['calculate','interp_deltaf_f'] = database['calculate','interpolated'].combine(database['calculate','interp_percentile'], 
     lambda raw, baseline: (raw - baseline) / baseline)
 
+# calculate the smoothed dF/F values using a moving average with a window size of 3
+smoothing_kernel = 3
+database[('calculate','smoothed_dff')]= database[('calculate','interp_deltaf_f')].apply(lambda arr: np.array([np.convolve(row, np.ones(smoothing_kernel)/ smoothing_kernel, mode = 'same') for row in arr]))
+
 #create a 10Hz interpolated time vector
 database[('toolkit','timestamps')] = (database[('calculate','interpolated')].map(lambda arr: pd.Series(
          np.arange(arr.shape[1]) * 0.1, name='time')))
 
 #creates a new column with the relevant psychopy timestamps for trials
-database['toolkit','trial_index'] = database.apply(lambda row: pd.DataFrame({'trial_num': row['raw','psychopy']['trials.thisN'][1:],'display_gratings_started': 
+database['toolkit','psychopy_trials'] = database.apply(lambda row: pd.DataFrame({'trial_num': row['raw','psychopy']['trials.thisN'][1:],'display_gratings_started': 
     row['raw','psychopy']['display_gratings.started'][1:], 'display_gratings_stopped' : row['raw','psychopy']['display_gratings.stopped'][1:]}),axis=1)
 
 #subtracts the first timestamp from all timestamps to create a data frame of start stop times per grating 
-database['toolkit','grat_on_off'] = database['toolkit','trial_index'].apply(
+database['toolkit','trial_index'] = database['toolkit','psychopy_trials'].apply(
     lambda df: pd.DataFrame(list(
         zip(
             (df['display_gratings_started'] - df['display_gratings_started'].iloc[0].astype(int)).astype(int),
             (df['display_gratings_stopped'] - df['display_gratings_started'].iloc[0].astype(int)).astype(int))
     ), columns=['start', 'stop']))
 
-
+# create a dataframe with trial #, block #, trial orientation, time(s), and smoothed dF/F value
+from py2p.transform import trials
+database[('toolkit','trials')] = database.apply(trials, axis=1)
 
 #calculate the mean dF/F across all ROIs for each session
 database['analysis','mean_deltaf_f'] = database['calculate','interp_deltaf_f'].apply(lambda x: np.mean(x, axis=0))
 
 
-
-# use trial tuples to restructure the dF/F data into trials
-# database['transform','deltaf_f_trials'] = database.apply(trials, axis=1)
 
 # %% PUPIL DATA PROCESSING
 from py2p.process import analyze_pupil_data
@@ -93,38 +96,17 @@ database['analysis','pupil_diameter_mm'] = database['raw','pupil'].apply(lambda 
 # %% LOCOMOTION DATA PROCESSING
 
 
+# %% PLOT THIS DATA
+from py2p.plot import plot_trial, plot_block
+
+# Plot a single trial 
+# plot_trial(df = database, subject= 'sub-SB03', session= 'ses-01', trial_idx=0) 
+
+# Plot a trial block
+plot_block(df = database, subject= 'sub-SB03', session= 'ses-01', block_idx=1)
+
 # %% NEW FUNCTIONS
-def trials(row):
-    deltaf_f = np.array(row['calculate', 'interp_deltaf_f'])         # shape: (n_rois, n_timepoints)
-    timestamps = np.array(row['transform', 'time_vector'])[-1]     # shape: (n_timepoints,)
-    trial_windows = row['transform', 'trial_tuple']                # list of (start, stop)
 
-    all_data = []  # Will store dictionaries for each trial × ROI × time point
-
-    for trial_idx, (start, stop) in enumerate(trial_windows):
-        # Create a mask for the time window
-        mask = (timestamps >= start) & (timestamps < stop)
-        if not np.any(mask):
-            continue  # Skip if no data in this trial window
-
-        time_slice = timestamps[mask]                   # (t,)
-        trial_data = deltaf_f[:, mask]                  # (n_rois, t)
-
-        # Loop over each ROI
-        for roi_idx in range(trial_data.shape[0]):
-            for time_idx, time_val in enumerate(time_slice):
-                all_data.append({
-                    'trial': trial_idx,
-                    'roi': roi_idx,
-                    'time': time_val,
-                    'dff': trial_data[roi_idx, time_idx]
-                })
-
-    return pd.DataFrame(all_data)
-
-database[('transform', 'deltaf_f_trials')] = database.apply(trials, axis=1)
-
-grouped = database['transform','deltaf_f_trials']['sub-SB03','ses-01'].groupby('trial')
 
 
 

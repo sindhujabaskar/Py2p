@@ -3,24 +3,29 @@ import scipy.interpolate
 import pandas as pd
 
 def trials(row):
-    import numpy as np
+    # the 8 grating angles you cycle through
+    orientations = [0, 45, 90, 135, 180, 225, 270, 315]
+    block_size   = len(orientations)
 
-    # grab inputs
-    deltaf_f   = np.asarray(row[('calculate', 'interp_deltaf_f')])  # (n_rois, n_times)
-    timestamps = np.asarray(row[('toolkit',   'timestamps')])      # (n_times,)
-    trial_df   = row[('toolkit',   'grat_on_off')]                  # DataFrame with 'start','stop'
+    # define inputs
+    deltaf_f   = np.asarray(row[('calculate', 'smoothed_dff')])  
+    timestamps = np.asarray(row[('toolkit',   'timestamps')])      
+    trial_df   = row[('toolkit', 'trial_index')]                  
 
     all_trials = []
-    # loop over each start/stop pair
-    for trial_idx, (start, stop) in enumerate(zip(trial_df['start'], trial_df['stop'])):
-        mask       = (timestamps >= start) & (timestamps < stop)
-        time_slice = timestamps[mask]                 # (t,)
-        trial_data = deltaf_f[:, mask]                # (n_rois, t)
+    for trial_id, (start, stop) in enumerate(zip(trial_df['start'], trial_df['stop'])):
+        mask         = (timestamps >= start) & (timestamps < stop)
+        time_slice   = timestamps[mask]           # (t,)
+        trial_data   = deltaf_f[:, mask]          # (n_rois, t)
+        orientation  = orientations[trial_id % len(orientations)]
+        trial_block  = trial_id // block_size
 
         all_trials.append({
-            'trial': trial_idx,
-            'time':  time_slice,
-            'dff':   trial_data
+            'trial':       trial_id,
+            'block':       trial_block,
+            'orientation': orientation,
+            'time':        time_slice,
+            'dff':         trial_data,
         })
 
     return pd.DataFrame(all_trials)
