@@ -22,7 +22,10 @@ load_modality = {
 }
 
 data.load(load_modality)
+
 database = data.df
+
+# data.save_hdf5(df=database, path=r'C:\dev\2408_SU24_F31.h5')
 
 # Promote all single-level columns to two-level columns
 database.columns = pd.MultiIndex.from_tuples(
@@ -79,7 +82,7 @@ database['toolkit','trial_index'] = database['toolkit','psychopy_trials'].apply(
             (df['display_gratings_stopped'] - df['display_gratings_started'].iloc[0].astype(int)).astype(int))
     ), columns=['start', 'stop']))
 
-# create a dataframe with trial #, block #, trial orientation, time(s), and smoothed dF/F value
+# create a dataframe with trial #, block #, trial orientation, time(s), and smoothed dF/F values
 from py2p.transform import trials
 database[('toolkit','trials')] = database.apply(trials, axis=1)
 
@@ -97,18 +100,22 @@ database['analysis','pupil_diameter_mm'] = database['raw','pupil'].apply(lambda 
 
 
 # %% PLOT THIS DATA
-from py2p.plot import plot_trial, plot_block
+from py2p.plot import plot_trial, plot_block, plot_all_rois_tuning_polar
 
 # Plot a single trial 
-# plot_trial(df = database, subject= 'sub-SB03', session= 'ses-01', trial_idx=0) 
+plot_trial(database = database, subject= 'sub-SB03', session= 'ses-01', trial_idx=0) 
 
 # Plot a trial block
-plot_block(df = database, subject= 'sub-SB03', session= 'ses-01', block_idx=1)
+plot_block(database = database, subject= 'sub-SB03', session= 'ses-04', block_idx=2)
+
+fig, axes = plot_all_rois_tuning_polar(database, 'sub-SB03', 'ses-04')
+fig.savefig('all_rois_tuning_polar.svg', dpi=300)
 
 # %% NEW FUNCTIONS
+from scipy.signal import find_peaks_cwt
 
-
-
+database[('analysis','peaks_cwt')] = database[('analysis','mean_deltaf_f')].apply(
+    lambda arr: find_peaks_cwt(arr, widths=[50]))
 
 
 # %% What is LAMBDA?????

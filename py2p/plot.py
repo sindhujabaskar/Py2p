@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-def plot_trial(df: pd.DataFrame,
+def plot_trial(database: pd.DataFrame,
                subject: str,
                session: str,
                trial_idx: int = 0,
@@ -18,7 +18,7 @@ def plot_trial(df: pd.DataFrame,
                   if False, plot each ROI separately
     """
     # pull out the per‐trial DataFrame
-    df = df['toolkit','trials'][(subject, session)]
+    df = database['toolkit','trials'][(subject, session)]
 
     # grab the time vector and dff array for that trial
     t   = df['time'].iloc[trial_idx]
@@ -40,7 +40,7 @@ def plot_trial(df: pd.DataFrame,
     plt.show()
 
 
-def plot_block(df: pd.DataFrame,
+def plot_block(database: pd.DataFrame,
                subject: str,
                session: str,
                block_idx: int):
@@ -53,7 +53,7 @@ def plot_block(df: pd.DataFrame,
       block_idx : integer block identifier
     """
     # pull out the per‐trial DataFrame and subset by block
-    df = df['toolkit','trials'][(subject, session)]
+    df = database['toolkit','trials'][(subject, session)]
     blk = df[df['block'] == block_idx]
     if blk.empty:
         raise ValueError(f"no trials found for block {block_idx}")
@@ -83,6 +83,62 @@ def plot_block(df: pd.DataFrame,
     plt.grid(True)
     plt.tight_layout()
     plt.show()
+
+from py2p.process import compute_roi_tuning
+def plot_all_rois_tuning_polar(database, subject, session, roi_idxs=None,
+                               blank_duration=3.0, stim_duration=2.0):
+    """
+    Create a grid of polar tuning plots for multiple ROIs in one session.
+    roi_idxs: list of ROI indices to plot (default = all).
+    """
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from math import ceil, sqrt
+
+    # pull trial table to verify session exists
+    trials = database[('toolkit','trials')].loc[(subject, session)]
+    if trials.empty:
+        raise ValueError(f"No trials for {subject} {session}")
+
+    # determine ROIs
+    if roi_idxs is None:
+        # assume filtered roi_fluorescence gives n_rois
+        n_rois = database.loc[(subject, session)][('filter','roi_fluorescence')].shape[0]
+        roi_idxs = list(range(n_rois))
+
+    n = len(roi_idxs)
+    ncols = int(ceil(sqrt(n)))
+    nrows = int(ceil(n / ncols))
+
+    fig, axes = plt.subplots(nrows, ncols,
+                             subplot_kw={'projection':'polar'},
+                             figsize=(4*ncols, 4*nrows), dpi=300)
+    axes = np.array(axes).reshape(-1)
+
+    for ax, roi in zip(axes, roi_idxs):
+        oris, means, sems, _ = compute_roi_tuning(
+            database, subject, session, roi,
+            blank_duration, stim_duration
+        )
+        thetas = np.deg2rad(np.concatenate([oris, oris[:1]]))
+        vals   = np.concatenate([means, means[:1]])
+        errs   = np.concatenate([sems, sems[:1]])
+
+        ax.plot(thetas, vals, '-o', color='#2E86AB', linewidth=1.5)
+        ax.fill_between(thetas, vals-errs, vals+errs, color='#2E86AB', alpha=0.3)
+        ax.set_xticks(np.deg2rad(oris))
+        ax.set_xticklabels([f"{int(o)}°" for o in oris], fontsize=8)
+        ax.set_title(f"ROI {roi}", fontsize=10, pad=10)
+        ax.set_theta_zero_location('N')
+        ax.set_theta_direction(-1)
+
+    # hide unused subplots
+    for ax in axes[n:]:
+        ax.set_visible(False)
+
+    fig.suptitle(f"{subject} {session} — ROI tuning (polar)", fontweight='bold')
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    return fig, axes
 
 
 # %%
