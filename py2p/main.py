@@ -71,30 +71,24 @@ database[('toolkit','timestamps')] = (database[('calculate','interpolated')].map
          np.arange(arr.shape[1]) * 0.1, name='time')))
 
 #creates a new column with the relevant psychopy timestamps for trials
-database['toolkit','psychopy_trials'] = database.apply(lambda row: pd.DataFrame({'trial_num': row['raw','psychopy']['trials.thisN'][1:],'display_gratings_started': 
-    row['raw','psychopy']['display_gratings.started'][1:], 'display_gratings_stopped' : row['raw','psychopy']['display_gratings.stopped'][1:]}),axis=1)
+# %%
+database['toolkit','psychopy_trials'] = database.apply(lambda row: pd.DataFrame({'trial_num': row['raw','psychopy']['trials.thisN'][1:],'trial_start': row['raw','psychopy']['display_gratings.started'][1:], 'grey_start': 
+    row['raw','psychopy']['stim_grayScreen.started'][1:], 'gratings_start': row['raw','psychopy']['stim_grating.started'][1:], 'trial_end' : row['raw','psychopy']['display_gratings.stopped'][1:]}),axis=1)
 
-#subtracts the first timestamp from all timestamps to create a data frame of start stop times per grating 
-database['toolkit','trial_index'] = database['toolkit','psychopy_trials'].apply(
-    lambda df: pd.DataFrame(list(
-        zip(
-            (df['display_gratings_started'] - df['display_gratings_started'].iloc[0].astype(int)).astype(int),
-            (df['display_gratings_stopped'] - df['display_gratings_started'].iloc[0].astype(int)).astype(int))
-    ), columns=['start', 'stop']))
+#subtracts the first timestamp from all timestamps for a zero-start index 
+database[('toolkit','trial_index')] = database[('toolkit','psychopy_trials')].apply(
+    lambda df: (df[['trial_start','grey_start','gratings_start','trial_end']].subtract(df['trial_start'].iloc[0])))
 
 # create a dataframe with trial #, block #, trial orientation, time(s), and smoothed dF/F values
 from py2p.transform import trials
 database[('toolkit','trials')] = database.apply(trials, axis=1)
 
-#calculate the mean dF/F across all ROIs for each session
+# calculate the mean dF/F across all ROIs for each session
 database['analysis','mean_deltaf_f'] = database['calculate','interp_deltaf_f'].apply(lambda x: np.mean(x, axis=0))
-
-
 
 # %% PUPIL DATA PROCESSING
 from py2p.process import analyze_pupil_data
 database['analysis','pupil_diameter_mm'] = database['raw','pupil'].apply(lambda x: analyze_pupil_data(x))
-
 
 # %% LOCOMOTION DATA PROCESSING
 
