@@ -70,6 +70,8 @@ database[('calculate','smoothed_dff')]= database[('calculate','interp_deltaf_f')
 database[('toolkit','timestamps')] = (database[('calculate','interpolated')].map(lambda arr: pd.Series(
          np.arange(arr.shape[1]) * 0.1, name='time')))
 
+
+
 #creates a new column with the relevant psychopy timestamps for trials
 # %%
 database['toolkit','psychopy_trials'] = database.apply(lambda row: pd.DataFrame({'trial_num': row['raw','psychopy']['trials.thisN'][1:],'trial_start': row['raw','psychopy']['display_gratings.started'][1:], 'grey_start': 
@@ -77,7 +79,7 @@ database['toolkit','psychopy_trials'] = database.apply(lambda row: pd.DataFrame(
 
 #subtracts the first timestamp from all timestamps for a zero-start index 
 database[('toolkit','trial_index')] = database[('toolkit','psychopy_trials')].apply(
-    lambda df: (df[['trial_start','grey_start','gratings_start','trial_end']].subtract(df['trial_start'].iloc[0])))
+    lambda df: (df[['trial_start','grey_start','gratings_start','trial_end']].subtract(df['trial_start'].iloc[0].astype(int))).astype(int))
 
 # create a dataframe with trial #, block #, trial orientation, time(s), and smoothed dF/F values
 from py2p.transform import trials
@@ -90,11 +92,112 @@ database['analysis','mean_deltaf_f'] = database['calculate','interp_deltaf_f'].a
 from py2p.process import analyze_pupil_data
 database['analysis','pupil_diameter_mm'] = database['raw','pupil'].apply(lambda x: analyze_pupil_data(x))
 
+# create timestamps for the pupil data
+database['toolkit','pupil_timestamps'] = database['analysis','pupil_diameter_mm'].apply(lambda arr: np.arange(arr.shape[0])/40.0)
+
+def process_pupil_data(database: pd.DataFrame,
+                       downsample_threshold: int = None,
+                       downsample_factor: int = 5):
+    """
+    Downsample pupil diameter timecourses for each (subject, session).
+
+    Adds new columns:
+      ('analysis','pupil_timestamps_ds') : downsampled timestamps
+      ('analysis','pupil_diameter_ds')  : downsampled pupil values
+
+    Args:
+        database            : main database DataFrame
+        downsample_threshold: if length exceeds this, downsample
+        downsample_factor   : factor by which to downsample
+    """
+    import numpy as np
+    # initialize storage
+    ts_ds = {}
+    pup_ds = {}
+    for (subj, sess), pup in database[('analysis','pupil_diameter_mm')].items():
+        # get raw timestamp and pupil arrays
+        ts = database[('toolkit','pupil_timestamps')].loc[(subj, sess)]
+        ts_arr = np.array(ts)
+        pup_arr = np.array(pup)
+        # downsample if requested
+        if downsample_threshold and len(pup_arr) > downsample_threshold:
+            idx = np.arange(0, len(pup_arr), downsample_factor)
+            ts2 = ts_arr[idx]
+            pup2 = pup_arr[idx]
+        else:
+            ts2 = ts_arr
+            pup2 = pup_arr
+        ts_ds[(subj, sess)] = ts2
+        pup_ds[(subj, sess)] = pup2
+    database[('analysis','pupil_timestamps_ds')] = pd.Series(ts_ds)
+    database[('analysis','pupil_diameter_ds')] = pd.Series(pup_ds)
+    return database
+
 # %% LOCOMOTION DATA PROCESSING
+# Process and filter locomotion (speed) data from ('raw','beh')
+from scipy.signal import savgol_filter
 
+def process_locomotion_data(database: pd.DataFrame,
+                             method: str = 'savgol',
+                             window_length: int = 5,
+                             polyorder: int = 2,
+                             downsample_threshold: int = None,
+                             downsample_factor: int = 5):
+    """
+    Smooth and optionally downsample locomotion speed for each (subject, session).
 
+    Adds two new columns to the database MultiIndex:
+      ('analysis','time_smoothed') and ('analysis','speed_smoothed')
+
+    Args:
+        database            : main database DataFrame
+        method              : smoothing method ('savgol' supported)
+        window_length       : window length for Savitzky-Golay filter (must be >=3 odd)
+        polyorder           : polynomial order for filter
+        downsample_threshold: if signal length exceeds this, downsample
+        downsample_factor   : factor by which to downsample
+    """
+    import numpy as np
+    # initialize storage
+    time_smoothed = {}
+    speed_smoothed = {}
+
+    # iterate over each session row
+    for (subj, sess), beh in database[('raw','beh')].items():
+        # assume beh is a DataFrame with 'timestamp' and 'speed'
+        ts = beh['timestamp'].values
+        sp = beh['speed'].values
+        # smoothing
+        if method == 'savgol' and len(sp) > 5:
+            wl = min(window_length, len(sp))
+            if wl % 2 == 0:
+                wl -= 1
+            if wl >= 3:
+                sp_sm = savgol_filter(sp, wl, polyorder)
+            else:
+                sp_sm = sp
+        else:
+            sp_sm = sp
+        # downsample if requested
+        if downsample_threshold and len(sp_sm) > downsample_threshold:
+            idx = np.arange(0, len(sp_sm), downsample_factor)
+            ts_sm = ts[idx]
+            sp_sm = sp_sm[idx]
+        else:
+            ts_sm = ts
+        # store results
+        time_smoothed[(subj, sess)] = ts_sm
+        speed_smoothed[(subj, sess)] = sp_sm
+    # assign back to database
+    database[('analysis','time_smoothed')] = pd.Series(time_smoothed)
+    database[('analysis','speed_smoothed')] = pd.Series(speed_smoothed)
+    return database
+
+# Example usage:
+process_locomotion_data(database, method='savgol', window_length=7, polyorder=3,
+                                 downsample_threshold=1000, downsample_factor=100)
 # %% PLOT THIS DATA
-from py2p.plot import plot_trial, plot_block, plot_all_rois_tuning_polar
+from py2p.plot import plot_trial, plot_block, plot_all_rois_tuning_polar, plot_session_overview
 
 # Plot a single trial 
 plot_trial(database = database, subject= 'sub-SB03', session= 'ses-01', trial_idx=0) 
@@ -104,6 +207,8 @@ plot_block(database = database, subject= 'sub-SB03', session= 'ses-04', block_id
 
 fig, axes = plot_all_rois_tuning_polar(database, 'sub-SB03', 'ses-04')
 fig.savefig('all_rois_tuning_polar.svg', dpi=300)
+
+fig, axes = plot_session_overview(database, subject='sub-SB03', session='ses-04')
 
 # %% NEW FUNCTIONS
 from scipy.signal import find_peaks_cwt
