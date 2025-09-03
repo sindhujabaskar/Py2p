@@ -50,6 +50,40 @@ class ExperimentData:
         self._df = pd.concat(series_list, axis=1) # combine all modality data into a single DataFrame
         return self._df
     
+    def save_hdf5(self, df, path, key="nested_data", compression="blosc"):
+        """
+        Export nested DataFrame to HDF5 format.
+
+        Args:
+            df (pd.DataFrame):  The combined nested DataFrame to save
+            path (str):         Output path to HDF5 file
+            key (str):          Dataset name within HDF5 file
+            compression (str):  Compression backend (ignored in fixed format but kept for future)
+        """
+        self._log(f"Saving to HDF5 (fixed format): {path}")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+
+        with pd.HDFStore(path, mode='w') as store:
+            store.put(key, df, format='fixed')
+            self._log(f"Saved nested DataFrame to HDF5 under key '{key}'")
+
+    def load_hdf5(self, path, key="nested_data"):
+        """
+        Load nested DataFrame from HDF5 format.
+
+        Args:
+            path (str): Path to the HDF5 file
+            key (str): Dataset name within HDF5 file
+
+        Returns:
+            pd.DataFrame: The loaded nested DataFrame
+        """
+        self._log(f"Loading from HDF5: {path}")
+        with pd.HDFStore(path, mode='r') as store:
+            df = store.get(key)
+            self._log(f"Loaded nested DataFrame from HDF5 under key '{key}'")
+        return df
+
     @property
     def df(self) -> pd.DataFrame:
         """Return the DataFrame containing all loaded experimental data across subjects and sessions."""

@@ -7,6 +7,7 @@ from py2p.config import DATA_DIR
 from py2p.dataset import ExperimentData
 import py2p.load as load
 import matplotlib.pyplot as plt
+from scipy.signal import find_peaks
 
 #  Load ExperimentData class
 root = Path(DATA_DIR)
@@ -70,7 +71,10 @@ database[('calculate','smoothed_dff')]= database[('calculate','interp_deltaf_f')
 database[('toolkit','timestamps')] = (database[('calculate','interpolated')].map(lambda arr: pd.Series(
          np.arange(arr.shape[1]) * 0.1, name='time')))
 
+database[('analysis','peaks_prominence')] = database[('analysis','mean_deltaf_f')].apply(
+    lambda arr: find_peaks(arr, prominence=0.3)[0])
 
+database[('analysis','num_peaks_prominence')] = database[('analysis','peaks_prominence')].apply(len)
 
 #creates a new column with the relevant psychopy timestamps for trials
 # %%
@@ -196,6 +200,10 @@ def process_locomotion_data(database: pd.DataFrame,
 # Example usage:
 process_locomotion_data(database, method='savgol', window_length=7, polyorder=3,
                                  downsample_threshold=1000, downsample_factor=100)
+
+# pupil event detection
+
+
 # %% PLOT THIS DATA
 from py2p.plot import plot_trial, plot_block, plot_all_rois_tuning_polar, plot_session_overview
 

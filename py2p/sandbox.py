@@ -9,7 +9,46 @@ so that u can get back to it later and see what u was thinking.
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import py2p.main
+
+def compute_peak_session_stats(database, session_labels=None):
+    """
+    Compute per-session peak count statistics (mean, std, count, sem, label).
+    """
+    import numpy as np
+    import matplotlib.pyplot as plt
+    # Get peak counts with MultiIndex
+    peak_counts = database[('analysis', 'num_peaks_prominence')]
+    # Convert to DataFrame for easier grouping
+    peak_df = peak_counts.reset_index()
+    peak_df.columns = ['Subject', 'Session', 'num_peaks']
+    # Group by session and compute mean and SEM
+    session_stats = peak_df.groupby('Session')['num_peaks'].agg(['mean', 'std', 'count']).reset_index()
+    session_stats['sem'] = session_stats['std'] / np.sqrt(session_stats['count'])
+    # Apply default session labels if none provided
+    if session_labels is None:
+        session_labels = {
+            'ses-01': 'Baseline',
+            'ses-02': 'Low EtOH',
+            'ses-03': 'Saline',
+            'ses-04': 'High EtOH'
+        }
+    session_stats['label'] = session_stats['Session'].map(session_labels)
+    # Set up high-quality plotting parameters
+    plt.rcParams.update({
+        'figure.dpi': 300,
+        'savefig.dpi': 300,
+        'font.size': 12,
+        'font.family': 'Arial',
+        'axes.linewidth': 1.5,
+        'axes.spines.top': False,
+        'axes.spines.right': False,
+        'xtick.major.size': 6,
+        'xtick.major.width': 1.5,
+        'ytick.major.size': 6,
+        'ytick.major.width': 1.5,
+        'legend.frameon': False
+    })
+    return session_stats
 
 def plot_poster_trace(database, subject, session, roi_idx, num_points=1000):
     """
@@ -120,62 +159,10 @@ def plot_session_avg_blocks(database, subject, session, save_path=None):
     plt.show()
     return fig, ax
 
-# # usage example (requires `database` defined in context):
-# # fig, ax = plot_poster_trace(database, 'sub-SB03', 'ses-01', roi_idx=61, num_points=1000)
-# # to export vector artwork:
-# # fig.savefig('trace_poster.svg', format='svg', dpi=600)
-
-database[('analysis','peaks_prominence')] = database[('analysis','mean_deltaf_f')].apply(
-    lambda arr: find_peaks(arr, prominence=0.3)[0])
-
-database[('analysis','num_peaks_prominence')] = database[('analysis','peaks_prominence')].apply(len)
-
-# Get peak counts with MultiIndex
-peak_counts = database[('analysis','num_peaks_prominence')]
-
-# Convert to DataFrame for easier grouping
-peak_df = peak_counts.reset_index()
-peak_df.columns = ['Subject', 'Session', 'num_peaks']
-
-# Group by session and compute mean and SEM
-session_stats = peak_df.groupby('Session')['num_peaks'].agg(['mean', 'std', 'count']).reset_index()
-session_stats['sem'] = session_stats['std'] / np.sqrt(session_stats['count'])
-
-# Create session label mapping
-session_labels = {
-    'ses-01': 'Baseline',
-    'ses-02': 'Low EtOH',
-    'ses-03': 'Saline',
-    'ses-04': 'High EtOH'
-}
-
-# Add readable labels to the dataframe
-# Map session codes to readable labels
-session_stats['label'] = session_stats['Session'].map(session_labels)
-
-# Set up high-quality plotting parameters
-plt.rcParams.update({
-    'figure.dpi': 300,
-    'savefig.dpi': 300,
-    'font.size': 12,
-    'font.family': 'Arial',
-    'axes.linewidth': 1.5,
-    'axes.spines.top': False,
-    'axes.spines.right': False,
-    'xtick.major.size': 6,
-    'xtick.major.width': 1.5,
-    'ytick.major.size': 6,
-    'ytick.major.width': 1.5,
-    'legend.frameon': False
-})
-
 def plot_event_frequency(database, save_path=None):
     """
     Plot calcium event frequency per condition with individual subject points and connecting lines.
     """
-    import numpy as np
-    import matplotlib.pyplot as plt
-
     # recompute peak counts dataframe
     peak_counts = database[('analysis','num_peaks_prominence')]
     peak_df = peak_counts.reset_index()
@@ -230,9 +217,6 @@ def plot_event_frequency(database, save_path=None):
     plt.show()
     return fig, ax
 
-# Optional: Call the new plotting function
-# fig, ax = plot_event_frequency(database)
-
 def plot_single_roi_trace(database, subject, session, roi_idx,
                            window=None, save_path=None):
     """
@@ -241,8 +225,6 @@ def plot_single_roi_trace(database, subject, session, roi_idx,
     save_path : optional path to save SVG output.
     Returns: fig, ax
     """
-    import numpy as np
-    import matplotlib.pyplot as plt
 
     # retrieve timestamps and ROI trace
     ts = database.toolkit.timestamps.loc[subject, session].values

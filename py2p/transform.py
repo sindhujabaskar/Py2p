@@ -11,18 +11,18 @@ def trials(row):
     timestamps = np.asarray(row[('toolkit',   'timestamps')])      
     trial_df   = row[('toolkit', 'trial_index')]          
     
-    # debugging timestamp values
-    print("timestamps:", timestamps[:10], "...", timestamps[-1])
-    print("trial_df dtypes:\n", trial_df.dtypes)
-    print("trial_df head:\n", trial_df.head())
+    # # debugging timestamp values
+    # print("timestamps:", timestamps[:10], "...", timestamps[-1])
+    # print("trial_df dtypes:\n", trial_df.dtypes)
+    # print("trial_df head:\n", trial_df.head())
 
-    # for the very first trial
-    s = trial_df['trial_start'].iat[0]
-    g = trial_df['gratings_start'].iat[0]
-    e = trial_df['trial_end'].iat[0]
-    print("first trial bounds (s,g,e):", s, g, e)
-    print("any timestamp in full window?", ((timestamps>=s)&(timestamps<e)).any())
-    print("any timestamp in on window?",  ((timestamps>=g)&(timestamps<e)).any())
+    # # for the very first trial
+    # s = trial_df['trial_start'].iat[0]
+    # g = trial_df['gratings_start'].iat[0]
+    # e = trial_df['trial_end'].iat[0]
+    # print("first trial bounds (s,g,e):", s, g, e)
+    # print("any timestamp in full window?", ((timestamps>=s)&(timestamps<e)).any())
+    # print("any timestamp in on window?",  ((timestamps>=g)&(timestamps<e)).any())
 
     all_trials = []
     for trial_id, (start, grating, stop) in enumerate(zip(trial_df['trial_start'], trial_df['gratings_start'], trial_df['trial_end'])):
