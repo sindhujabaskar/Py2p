@@ -89,6 +89,7 @@ def compute_roi_tuning(database, subject, session, roi_idx,
     # window indices for the grating (2s) period
     t0 = blank_duration
     t1 = blank_duration + stim_duration
+    
     # use first trial's time vector for indexing
     tvec = np.array(times[0])
     mask = (tvec >= t0) & (tvec < t1)

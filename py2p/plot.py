@@ -150,7 +150,7 @@ def plot_all_rois_tuning_polar(database, subject, session, roi_idxs=None,
     plt.tight_layout(rect=[0, 0, 1, 0.96])
     return fig, axes
 
-def plot_roi_tuning_polar(database = database, subject, session, roi_idx,
+def plot_roi_tuning_polar(database, subject, session, roi_idx,
                            blank_duration=3.0, stim_duration=2.0,
                            save_path=None):
      """
@@ -167,9 +167,7 @@ def plot_roi_tuning_polar(database = database, subject, session, roi_idx,
      Returns:
        fig, ax         : matplotlib Figure and Axes
      """
-     import numpy as np
-     import matplotlib.pyplot as plt
-
+     
      # compute orientation tuning for the ROI
      oris, means, sems, _ = compute_roi_tuning(
          database, subject, session, roi_idx,

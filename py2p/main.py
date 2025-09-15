@@ -71,13 +71,18 @@ database[('calculate','smoothed_dff')]= database[('calculate','interp_deltaf_f')
 database[('toolkit','timestamps')] = (database[('calculate','interpolated')].map(lambda arr: pd.Series(
          np.arange(arr.shape[1]) * 0.1, name='time')))
 
+# calculate the mean dF/F across all ROIs for each session
+database['analysis','mean_deltaf_f'] = database['calculate','interp_deltaf_f'].apply(lambda x: np.mean(x, axis=0))
+
 database[('analysis','peaks_prominence')] = database[('analysis','mean_deltaf_f')].apply(
     lambda arr: find_peaks(arr, prominence=0.3)[0])
 
 database[('analysis','num_peaks_prominence')] = database[('analysis','peaks_prominence')].apply(len)
 
-#creates a new column with the relevant psychopy timestamps for trials
+
+
 # %%
+#creates a new column with the relevant psychopy timestamps for trials
 database['toolkit','psychopy_trials'] = database.apply(lambda row: pd.DataFrame({'trial_num': row['raw','psychopy']['trials.thisN'][1:],'trial_start': row['raw','psychopy']['display_gratings.started'][1:], 'grey_start': 
     row['raw','psychopy']['stim_grayScreen.started'][1:], 'gratings_start': row['raw','psychopy']['stim_grating.started'][1:], 'trial_end' : row['raw','psychopy']['display_gratings.stopped'][1:]}),axis=1)
 
@@ -88,9 +93,6 @@ database[('toolkit','trial_index')] = database[('toolkit','psychopy_trials')].ap
 # create a dataframe with trial #, block #, trial orientation, time(s), and smoothed dF/F values
 from py2p.transform import trials
 database[('toolkit','trials')] = database.apply(trials, axis=1)
-
-# calculate the mean dF/F across all ROIs for each session
-database['analysis','mean_deltaf_f'] = database['calculate','interp_deltaf_f'].apply(lambda x: np.mean(x, axis=0))
 
 # %% PUPIL DATA PROCESSING
 from py2p.process import analyze_pupil_data
@@ -223,7 +225,6 @@ from scipy.signal import find_peaks_cwt
 
 database[('analysis','peaks_cwt')] = database[('analysis','mean_deltaf_f')].apply(
     lambda arr: find_peaks_cwt(arr, widths=[50]))
-
 
 # %% What is LAMBDA?????
 

@@ -3,6 +3,7 @@ Defines ExperimentData for integrated BIDS data management.
 """
 import pandas as pd
 import numpy as np
+import os
 from pathlib import Path
 from typing import Callable, Dict, List
 from py2p.load import find_files
