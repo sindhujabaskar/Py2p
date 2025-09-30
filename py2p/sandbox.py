@@ -562,6 +562,7 @@ def plot_session_trial_averages(database: pd.DataFrame,
     plt.show()
 
 def plot_pupil_speed_matrix(database: pd.DataFrame,
+                            
                             subject: str,
                             sessions: list = None,
                             save_path: str = None):
@@ -657,3 +658,650 @@ def plot_pupil_speed_matrix(database: pd.DataFrame,
         fig.savefig(save_path, format='svg', bbox_inches='tight')
     plt.show()
     return fig, axs
+
+def plot_trial(database: pd.DataFrame,
+               subject: str,
+               session: str,
+               trial_idx: int = 0,
+               average: bool = True):
+    """
+    Plot the dF/F trace for one trial.
+
+    Args:
+      subject   : e.g. 'sub-SB03'
+      session   : e.g. 'ses-01'
+      trial_idx : zero-based index of the trial in that session
+      average   : if True, plot the mean across all ROIs; 
+                  if False, plot each ROI separately
+    """
+    # pull out the per‐trial DataFrame
+    df = database['toolkit','trials'][(subject, session)]
+
+    # grab the time vector and dff array for that trial
+    t   = df['time'].iloc[trial_idx]
+    dff = df['dff'].iloc[trial_idx]
+
+    plt.figure()
+    if average:
+        y = dff.mean(axis=0)
+        plt.plot(t, y, lw=2, label='mean dF/F')
+    else:
+        for i, roi in enumerate(dff):
+            plt.plot(t, roi, label=f'ROI {i}')
+        plt.legend(loc='best')
+
+    plt.xlabel('Time (s)')
+    plt.ylabel('dF/F')
+    plt.title(f'{subject} {session} – trial #{trial_idx}')
+    plt.tight_layout()
+    plt.show()
+
+def plot_block(database: pd.DataFrame,
+               subject: str,
+               session: str,
+               block_idx: int):
+    """
+    Plot the concatenated average dF/F trace for all ROIs in a block.
+
+    Args:
+      subject   : e.g. 'sub-SB03'
+      session   : e.g. 'ses-01'
+      block_idx : integer block identifier
+    """
+    # pull out the per‐trial DataFrame and subset by block
+    df = database['toolkit','trials'][(subject, session)]
+    blk = df[df['block'] == block_idx]
+    if blk.empty:
+        raise ValueError(f"no trials found for block {block_idx}")
+
+    # collect time vectors and mean‐across‐ROIs dF/F per trial
+    all_times = []
+    all_avg_dffs = []
+    for _, row in blk.iterrows():
+        time = np.array(row['time'])        # shape: (n_time,)
+        dff  = np.array(row['dff'])         # shape: (n_rois, n_time)
+        avg_dff = dff.mean(axis=0)          # shape: (n_time,)
+        all_times.append(time)
+        all_avg_dffs.append(avg_dff)
+
+    # concatenate across trials
+    full_time    = np.concatenate(all_times)
+    full_avg_dff = np.concatenate(all_avg_dffs)
+
+    # plot
+    plt.figure(figsize=(14, 5))
+    plt.plot(full_time, full_avg_dff,
+             label=f'block {block_idx} avg ΔF/F',
+             color='tab:blue')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Avg ΔF/F')
+    plt.title(f'{subject} {session} – block #{block_idx}')
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+from py2p.process import compute_roi_tuning
+
+def plot_all_rois_tuning_polar(database, subject, session, roi_idxs=None,
+                               blank_duration=3.0, stim_duration=2.0):
+    """
+    Create a grid of polar tuning plots for multiple ROIs in one session.
+    roi_idxs: list of ROI indices to plot (default = all).
+    """
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from math import ceil, sqrt
+
+    # pull trial table to verify session exists
+    trials = database[('toolkit','trials')].loc[(subject, session)]
+    if trials.empty:
+        raise ValueError(f"No trials for {subject} {session}")
+
+    # determine ROIs
+    if roi_idxs is None:
+        # assume filtered roi_fluorescence gives n_rois
+        n_rois = database.loc[(subject, session)][('filter','roi_fluorescence')].shape[0]
+        roi_idxs = list(range(n_rois))
+
+    # precompute tuning for each ROI to determine consistent radial scale
+    tuning_list = [compute_roi_tuning(
+        database, subject, session, roi,
+        blank_duration, stim_duration
+    ) for roi in roi_idxs]
+    # determine max radius across all ROIs
+    rmax = max((np.max(means + sems) for _, means, sems, _ in tuning_list))
+    n = len(roi_idxs)
+    ncols = int(ceil(sqrt(n)))
+    nrows = int(ceil(n / ncols))
+
+    fig, axes = plt.subplots(nrows, ncols,
+                             subplot_kw={'projection':'polar'},
+                             figsize=(4*ncols, 4*nrows), dpi=300)
+    axes = np.array(axes).reshape(-1)
+
+    for ax, roi in zip(axes, roi_idxs):
+        oris, means, sems, _ = compute_roi_tuning(
+            database, subject, session, roi,
+            blank_duration, stim_duration
+        )
+        thetas = np.deg2rad(np.concatenate([oris, oris[:1]]))
+        vals   = np.concatenate([means, means[:1]])
+        errs   = np.concatenate([sems, sems[:1]])
+
+        ax.plot(thetas, vals, '-o', color='#2E86AB', linewidth=1.5)
+        ax.fill_between(thetas, vals-errs, vals+errs, color='#2E86AB', alpha=0.3)
+        ax.set_xticks(np.deg2rad(oris))
+        ax.set_xticklabels([f"{int(o)}°" for o in oris], fontsize=8)
+        ax.set_title(f"ROI {roi}", fontsize=10, pad=10)
+        ax.set_theta_zero_location('E')  # 0° at right (East)
+        ax.set_theta_direction(1)         # angles increase counterclockwise
+        ax.set_ylim(0, rmax)              # consistent radial scale across ROIs
+
+    # hide unused subplots
+    for ax in axes[n:]:
+        ax.set_visible(False)
+
+    fig.suptitle(f"{subject} {session} — ROI tuning (polar)", fontweight='bold')
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    return fig, axes
+
+def plot_roi_tuning_polar(database, subject, session, roi_idx,
+                           blank_duration=3.0, stim_duration=2.0,
+                           save_path=None):
+     """
+     Plot a single ROI's tuning curve in polar coordinates.
+
+     Args:
+       database        : pandas DataFrame with required fields
+       subject         : subject identifier (e.g. 'sub-SB03')
+       session         : session identifier (e.g. 'ses-01')
+       roi_idx         : index of the ROI to plot
+       blank_duration  : pre-stimulus blank duration (s)
+       stim_duration   : stimulus duration (s)
+       save_path       : optional path to save SVG output
+     Returns:
+       fig, ax         : matplotlib Figure and Axes
+     """
+     
+     # compute orientation tuning for the ROI
+     oris, means, sems, _ = compute_roi_tuning(
+         database, subject, session, roi_idx,
+         blank_duration, stim_duration
+     )
+     # wrap for closed polar curve
+     thetas = np.deg2rad(np.concatenate([oris, oris[:1]]))
+     vals   = np.concatenate([means, means[:1]])
+     errs   = np.concatenate([sems, sems[:1]])
+
+     # wrap polar data and compute radial max
+     rmax = np.max(vals + errs)
+     # create high-resolution polar figure
+     fig = plt.figure(figsize=(6, 6), dpi=300)
+     ax = fig.add_subplot(111, projection='polar')
+
+     # plot mean and SEM shading
+     ax.plot(thetas, vals, '-o', color='#2E86AB', linewidth=1.5)
+     ax.fill_between(thetas, vals-errs, vals+errs, color='#2E86AB', alpha=0.3)
+
+     # angle ticks and labels
+     ax.set_xticks(np.deg2rad(oris))
+     ax.set_xticklabels([f"{int(o)}°" for o in oris], fontsize=10)
+
+     # orientation and styling
+     ax.set_theta_zero_location('E')  # 0° at right
+     ax.set_theta_direction(1)         # CCW positive
+     ax.set_title(f"{subject} {session} — ROI {roi_idx} tuning (polar)",
+                  fontweight='bold', pad=10)
+    
+     # consistent radial scale
+     ax.set_ylim(0, rmax)
+
+     plt.tight_layout()
+     if save_path:
+         fig.savefig(save_path, format='svg')
+     plt.show()
+     return fig, ax
+
+def plot_session_overview(database: pd.DataFrame,
+                          subject: str,
+                          session: str,
+                          save_path: Optional[str] = None):
+    """
+    Plot a 4-panel overview for one (subject, session):
+      1) mean ΔF/F across ROIs (10 Hz timestamps)
+      2) pupil diameter (mm) vs 40 Hz pupil timestamps
+      3) running speed (inverted)
+      4) distance (inverted)
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    # poster-ready defaults
+    plt.rcParams.update({
+        'figure.dpi':      300,
+        'savefig.dpi':     300,
+        'font.size':       14,
+        'axes.titlesize':  16,
+        'axes.labelsize':  14,
+        'xtick.labelsize': 12,
+        'ytick.labelsize': 12,
+        'lines.linewidth': 2
+    })
+
+    # set up 4 stacked subplots
+    fig, axes = plt.subplots(4, 1, sharex=False, figsize=(10, 12))
+
+    # 1) Mean ΔF/F (10 Hz)
+    ts_img   = database[('toolkit','timestamps')].loc[(subject, session)].values
+    mean_dff = database[('analysis','mean_deltaf_f')].loc[(subject, session)]
+    axes[0].plot(ts_img, mean_dff, color='C0')
+    axes[0].set_ylabel('Mean ΔF/F')
+    axes[0].set_title(f'{subject} — {session}')
+
+    # 2) Pupil diameter vs 40 Hz timestamps
+    pupil    = database[('analysis','pupil_diameter_mm')].loc[(subject, session)].values
+    pupil_ts = database[('toolkit','pupil_timestamps')].loc[(subject, session)]
+    axes[1].plot(pupil_ts, pupil, color='C1')
+    axes[1].set_ylabel('Pupil (mm)')
+
+    # 3) Running speed (smoothed)
+    # use preprocessed locomotion data
+    ts_sm = database[('analysis','time_smoothed')].loc[(subject, session)]
+    sp_sm = database[('analysis','speed_smoothed')].loc[(subject, session)]
+    # invert speed so positive values plot downward
+    axes[2].plot(ts_sm, -sp_sm, color='C2')
+    axes[2].set_ylabel('Running speed (smoothed)')
+
+    # 4) Distance (inverted)
+    # use raw behavior data for distance
+    beh_dist = database[('raw','beh')].loc[(subject, session)]
+    axes[3].plot(beh_dist['timestamp'], -beh_dist['distance'], color='C3')
+    axes[3].set_ylabel('Distance')
+
+    # common x-axis label
+    axes[3].set_xlabel('Time (s)')
+    axes[0].set_ylim(0, 1.0)
+    axes[1].set_ylim(0, 2.0)
+    axes[2].set_ylim(-0.5, 1.0)
+    axes[3].set_ylim(0, 150)
+
+    fig.tight_layout()
+    if save_path:
+        fig.savefig(save_path, format='svg')
+    plt.show()
+    return fig, axes
+
+def trial_mean(database: pd.DataFrame):
+    """
+    Compute mean grating-on dF/F response per trial for all ROIs across all sessions and add to database.
+    
+    Parameters
+    ----------
+    database : pd.DataFrame
+        Main database with MultiIndex columns
+        
+    Returns
+    -------
+    None
+        Modifies database in place by adding ('analysis', 'ROI_trial_mean_dff') column
+    """
+    
+    # Initialize storage for all sessions
+    roi_tuning_data = {}
+    
+    # Iterate through all subject-session pairs
+    for (subject, session) in database.index:
+        try:
+            # define variables for this session
+            trials = database[('toolkit','trials')].loc[(subject, session)]
+            
+            # Skip if no trials data
+            if trials is None or trials.empty:
+                print(f"No trials data for {subject} {session}, skipping...")
+                roi_tuning_data[(subject, session)] = None
+                continue
+                
+            orientations = trials['orientation'].values
+            directions = trials['direction'].values
+            dff_grat = trials['dff_on'].values
+            dff_grey = trials['dff_off'].values
+
+            # get number of ROIs from first trial
+            num_rois = dff_grat[0].shape[0]
+            num_trials = len(dff_grat)
+            
+            # initialize arrays to store responses for all ROIs
+            grat_responses = np.zeros((num_rois, num_trials))
+            grey_responses = np.zeros((num_rois, num_trials))
+            
+            # calculate mean dF/F over stim and grey windows for all ROIs
+            for trial_idx, (dff_on, dff_off) in enumerate(zip(dff_grat, dff_grey)):
+                grat_responses[:, trial_idx] = dff_on.mean(axis=1)  # mean across time for each ROI
+                grey_responses[:, trial_idx] = dff_off.mean(axis=1)  # mean across time for each ROI
+            
+            # create results DataFrame
+            trial_means = pd.DataFrame({
+                'orientations': orientations, 
+                'directions': directions, 
+                'grat_resp_all_rois': [grat_responses[:, i] for i in range(num_trials)], 
+                'grey_resp_all_rois': [grey_responses[:, i] for i in range(num_trials)]
+            })
+            
+            # store in dictionary
+            roi_tuning_data[(subject, session)] = trial_means
+            print(f"Computed ROI tuning for {subject} {session}")
+            
+        except Exception as e:
+            print(f"Error processing {subject} {session}: {e}")
+            roi_tuning_data[(subject, session)] = None
+    
+    # Add the new column to database using pd.Series
+    database[('analysis', 'ROI_trial_mean_dff')] = pd.Series(roi_tuning_data)
+    
+    print("ROI tuning analysis complete for all sessions!")
+    return None
+
+def identify_preferred_stimuli(database: pd.DataFrame):
+    """
+    Identify the preferred orientation and direction for each ROI based on highest mean dF/F 
+    across all blocks for each session.
+    
+    Parameters
+    ----------
+    database : pd.DataFrame
+        Main database with MultiIndex columns containing ('analysis', 'ROI_trial_mean_dff')
+        
+    Returns
+    -------
+    None
+        Modifies database in place by adding ('analysis', 'ROI_preferred_stimuli') column
+    """
+    
+    # Initialize storage for all sessions
+    preferred_stimuli_data = {}
+    
+    # Iterate through all subject-session pairs
+    for (subject, session) in database.index:
+        try:
+            # Get trial mean data for this session
+            trial_means = database[('analysis', 'ROI_trial_mean_dff')].loc[(subject, session)]
+            
+            # Skip if no trial means data
+            if trial_means is None or trial_means.empty:
+                print(f"No trial means data for {subject} {session}, skipping...")
+                preferred_stimuli_data[(subject, session)] = None
+                continue
+            
+            # Extract data
+            orientations = trial_means['orientations'].values
+            directions = trial_means['directions'].values
+            grat_responses = np.array([resp for resp in trial_means['grat_resp_all_rois']])
+            
+            # Get unique stimuli
+            unique_orientations = np.unique(orientations)
+            unique_directions = np.unique(directions)
+            
+            # Get number of ROIs
+            num_rois = grat_responses.shape[1]
+            
+            # Initialize results arrays
+            preferred_orientations = np.zeros(num_rois)
+            preferred_directions = np.zeros(num_rois)
+            max_orientation_responses = np.zeros(num_rois)
+            max_direction_responses = np.zeros(num_rois)
+            orientation_selectivity_indices = np.zeros(num_rois)
+            
+            # For each ROI, find preferred orientation and direction
+            for roi_idx in range(num_rois):
+                roi_responses = grat_responses[:, roi_idx]
+                
+                # Calculate mean response for each orientation
+                orientation_means = []
+                for ori in unique_orientations:
+                    ori_mask = orientations == ori
+                    orientation_means.append(roi_responses[ori_mask].mean())
+                
+                # Calculate OSI using vector average method (Banerjee et al., 2016)
+                # OSI = sqrt((sum(R(θi)*sin(2θi))^2 + (sum(R(θi)*cos(2θi))^2)) / sum(R(θi))
+                orientation_means = np.array(orientation_means)
+                
+                # Convert orientations to radians and double the angle for OSI calculation
+                theta_rad = np.deg2rad(unique_orientations * 2)  # multiply by 2 for orientation selectivity
+                
+                # Calculate vector components
+                sin_component = np.sum(orientation_means * np.sin(theta_rad))
+                cos_component = np.sum(orientation_means * np.cos(theta_rad))
+                total_response = np.sum(orientation_means)
+                
+                # Calculate OSI
+                if total_response > 0:
+                    osi = np.sqrt(sin_component**2 + cos_component**2) / total_response
+                else:
+                    osi = 0.0
+                
+                orientation_selectivity_indices[roi_idx] = osi
+                
+                # Calculate mean response for each direction
+                direction_means = []
+                for dir_val in unique_directions:
+                    dir_mask = directions == dir_val
+                    direction_means.append(roi_responses[dir_mask].mean())
+                
+                # Find preferred stimuli (highest mean response)
+                preferred_ori_idx = np.argmax(orientation_means)
+                preferred_dir_idx = np.argmax(direction_means)
+                
+                preferred_orientations[roi_idx] = unique_orientations[preferred_ori_idx]
+                preferred_directions[roi_idx] = unique_directions[preferred_dir_idx]
+                max_orientation_responses[roi_idx] = orientation_means[preferred_ori_idx]
+                max_direction_responses[roi_idx] = direction_means[preferred_dir_idx]
+            
+            # Create results DataFrame
+            preferred_stimuli = pd.DataFrame({
+                'roi_id': np.arange(num_rois),
+                'preferred_orientation': preferred_orientations,
+                'preferred_direction': preferred_directions,
+                'max_orientation_response': max_orientation_responses,
+                'max_direction_response': max_direction_responses,
+                'orientation_selectivity_index': orientation_selectivity_indices,
+                'direction_selectivity': max_direction_responses / (max_direction_responses.mean() + 1e-10)
+            })
+            
+            # Store in dictionary
+            preferred_stimuli_data[(subject, session)] = preferred_stimuli
+            print(f"Identified preferred stimuli for {num_rois} ROIs in {subject} {session}")
+            
+        except Exception as e:
+            print(f"Error processing preferred stimuli for {subject} {session}: {e}")
+            preferred_stimuli_data[(subject, session)] = None
+    
+    # Add the new column to database using pd.Series
+    database[('analysis', 'ROI_preferred_stimuli')] = pd.Series(preferred_stimuli_data)
+    
+    print("Preferred stimuli identification complete for all sessions!")
+    return None
+
+def plot_orientation_tuning(database: pd.DataFrame, subject: str, session: str, roi_id: int, 
+                           title: str = None, figsize: tuple = (8, 6)):
+    """
+    Plot orientation tuning curve for a specific ROI with OSI value displayed.
+    
+    Parameters
+    ----------
+    database : pd.DataFrame
+        Main database with MultiIndex columns
+    subject : str
+        Subject identifier (e.g., 'sub-SB03')
+    session : str
+        Session identifier (e.g., 'ses-01')
+    roi_id : int
+        ROI index to plot
+    title : str, optional
+        Custom plot title
+    figsize : tuple, optional
+        Figure size (width, height)
+        
+    Returns
+    -------
+    fig, ax : matplotlib figure and axes objects
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+    
+    # Get trial mean data for this session
+    trial_means = database[('analysis', 'ROI_trial_mean_dff')].loc[(subject, session)]
+    
+    if trial_means is None or trial_means.empty:
+        raise ValueError(f"No trial means data found for {subject} {session}")
+    
+    # Get OSI data
+    try:
+        preferred_stimuli = database[('analysis', 'ROI_preferred_stimuli')].loc[(subject, session)]
+        roi_data = preferred_stimuli[preferred_stimuli['roi_id'] == roi_id]
+        
+        if not roi_data.empty:
+            osi = roi_data['orientation_selectivity_index'].iloc[0]
+            preferred_ori = roi_data['preferred_orientation'].iloc[0]
+        else:
+            osi = None
+            preferred_ori = None
+    except (KeyError, IndexError):
+        osi = None
+        preferred_ori = None
+    
+    # Extract data
+    orientations = trial_means['orientations'].values
+    grat_responses = np.array([resp[roi_id] for resp in trial_means['grat_resp_all_rois']])
+    
+    # Get unique orientations and calculate mean response for each
+    unique_orientations = np.unique(orientations)
+    orientation_means = []
+    orientation_sems = []
+    
+    for orientation in unique_orientations:
+        orientation_mask = orientations == orientation
+        orientation_responses = grat_responses[orientation_mask]
+        orientation_means.append(orientation_responses.mean())
+        orientation_sems.append(orientation_responses.std() / np.sqrt(len(orientation_responses)))
+    
+    orientation_means = np.array(orientation_means)
+    orientation_sems = np.array(orientation_sems)
+    
+    # Find peak response and normalize
+    peak_response = np.max(orientation_means)
+    if peak_response == 0:
+        print(f"Warning: Peak response is 0 for ROI {roi_id}")
+        normalized_means = orientation_means
+        normalized_sems = orientation_sems
+    else:
+        normalized_means = orientation_means / peak_response
+        normalized_sems = orientation_sems / peak_response
+    
+    # For circular plotting, duplicate the first point at the end
+    plot_orientations = np.concatenate([unique_orientations, [unique_orientations[0] + 180]])
+    plot_means = np.concatenate([normalized_means, [normalized_means[0]]])
+    plot_sems = np.concatenate([normalized_sems, [normalized_sems[0]]])
+    
+    # Create the plot
+    fig, ax = plt.subplots(figsize=figsize)
+    
+    # Plot the main line
+    line = ax.plot(plot_orientations, plot_means, 
+                   marker='o', linewidth=2, markersize=8, color='#2E86AB', label='Mean response')
+    
+    # Add shaded region for SEM
+    ax.fill_between(plot_orientations, 
+                   plot_means - plot_sems,
+                   plot_means + plot_sems,
+                   alpha=0.3, color='#2E86AB', label='SEM')
+    
+    # Add reference lines
+    ax.axhline(y=1.0, color='red', linestyle='--', alpha=0.7, label='Peak response')
+    
+    # Customize the plot
+    ax.set_xlabel('Orientation (degrees)', fontsize=12)
+    ax.set_ylabel('Normalized Response (peak = 1.0)', fontsize=12)
+    ax.set_title(title or f'{subject} {session} - ROI {roi_id} Orientation Tuning', fontsize=14, fontweight='bold')
+    ax.grid(True, alpha=0.3)
+    ax.legend()
+    
+    # Set x-axis ticks
+    ax.set_xticks([0, 45, 90, 135, 180])
+    ax.set_xlim(-10, 190)
+    ax.set_ylim(0, 1.1)
+    
+    # Add OSI value at the top of the plot
+    if osi is not None:
+        osi_text = f"OSI: {osi:.3f}"
+    else:
+        osi_text = "OSI: not available"
+    
+    ax.text(0.5, 0.95, osi_text, transform=ax.transAxes, 
+            ha='center', va='top', fontsize=12, fontweight='bold',
+            bbox=dict(boxstyle='round,pad=0.5', facecolor='lightblue', alpha=0.8))
+    
+    # Annotate preferred orientation if available
+    if preferred_ori is not None:
+        peak_idx = np.where(unique_orientations == preferred_ori)[0][0]
+        ax.annotate(f'Preferred: {preferred_ori:.0f}°', 
+                   xy=(preferred_ori, normalized_means[peak_idx]),
+                   xytext=(10, 10), textcoords='offset points',
+                   bbox=dict(boxstyle='round,pad=0.3', facecolor='yellow', alpha=0.7),
+                   arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0'))
+    
+    plt.tight_layout()
+    plt.show()
+    
+    return fig, ax
+
+def compute_roi_tuning(database, subject, session, roi_idx,
+                       blank_duration=3.0, stim_duration=2.0):
+    """
+    Compute a tuning curve for one ROI by measuring its mean ΔF/F
+    in the grating window (blank_duration→blank_duration+stim_duration)
+    for each orientation across all blocks.
+
+    Returns:
+      orientations : list of unique orientations in cycle order
+      mean_resps   : array of shape (n_orientations,)
+      sem_resps    : array of shape (n_orientations,)
+      block_pref   : list of preferred orientation per block
+    """
+    # pull trial table for this subject/session
+    trials = database[('toolkit','trials')].loc[(subject, session)]
+    if trials.empty:
+        raise ValueError(f"No trials for {subject} {session}")
+
+    # time & dff arrays per trial
+    orientations = trials['orientation'].values
+    times = trials['time'].values
+    dffs = trials['dff'].values  # array of shape (n_trials, n_rois, n_time)
+
+    # window indices for the grating (2s) period
+    t0 = blank_duration
+    t1 = blank_duration + stim_duration
+    
+    # use first trial's time vector for indexing
+    tvec = np.array(times[0])
+    mask = (tvec >= t0) & (tvec < t1)
+
+    # collect responses per trial: mean ΔF/F over stim window
+    resp = np.array([dff[roi_idx, mask].mean() for dff in dffs])
+
+    # unique orientations in presented order
+    uniq_oris = np.unique(orientations)
+    mean_resps = []
+    sem_resps = []
+    for ori in uniq_oris:
+        sel = resp[orientations == ori]
+        mean_resps.append(sel.mean())
+        sem_resps.append(sel.std(ddof=1) / np.sqrt(len(sel)))
+
+    # preferred orientation per block
+    n_blocks = len(resp) // len(uniq_oris)
+    block_pref = []
+    for b in range(n_blocks):
+        block_resp = resp[b*len(uniq_oris):(b+1)*len(uniq_oris)]
+        block_pref.append(uniq_oris[np.argmax(block_resp)])
+
+    return list(uniq_oris), np.array(mean_resps), np.array(sem_resps), block_pref

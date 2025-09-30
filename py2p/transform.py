@@ -3,44 +3,34 @@ import scipy.interpolate
 import pandas as pd
 
 def trials(row):
-    orientations = [0, 45, 90, 135, 180, 225, 270, 315]  # the 8 grating angles you cycle through
-    block_size   = len(orientations)
+    directions = [0, 45, 90, 135, -180, -45, -90, -135]  # the 8 grating angles you cycle through
+    orientations = [0, 45, 90, 135]
+    block_size   = len(directions)
 
     # define inputs
     deltaf_f   = np.asarray(row[('calculate', 'smoothed_dff')])  
     timestamps = np.asarray(row[('toolkit',   'timestamps')])      
     trial_df   = row[('toolkit', 'trial_index')]          
-    
-    # # debugging timestamp values
-    # print("timestamps:", timestamps[:10], "...", timestamps[-1])
-    # print("trial_df dtypes:\n", trial_df.dtypes)
-    # print("trial_df head:\n", trial_df.head())
-
-    # # for the very first trial
-    # s = trial_df['trial_start'].iat[0]
-    # g = trial_df['gratings_start'].iat[0]
-    # e = trial_df['trial_end'].iat[0]
-    # print("first trial bounds (s,g,e):", s, g, e)
-    # print("any timestamp in full window?", ((timestamps>=s)&(timestamps<e)).any())
-    # print("any timestamp in on window?",  ((timestamps>=g)&(timestamps<e)).any())
 
     all_trials = []
     for trial_id, (start, grating, stop) in enumerate(zip(trial_df['trial_start'], trial_df['gratings_start'], trial_df['trial_end'])):
-        trial_mask   = (timestamps >= start) & (timestamps < stop)
-        off_mask   = (timestamps >= start) & (timestamps < grating)
-        on_mask    = (timestamps >= grating) & (timestamps < stop)
-        time_slice   = timestamps[trial_mask]           # (t,)
-        trial_data   = deltaf_f[:, trial_mask]          # (n_rois, t)
+        trial_mask    = (timestamps >= start) & (timestamps < stop)
+        off_mask      = (timestamps >= start) & (timestamps < grating)
+        on_mask       = (timestamps >= grating) & (timestamps < stop)
+        time_slice    = timestamps[trial_mask]           # (t,)
+        trial_data    = deltaf_f[:, trial_mask]          # (n_rois, t)
         time_off      = timestamps[off_mask]            # (t_off,)
         dff_off       = deltaf_f[:, off_mask]           # (n_rois, t_off)
         time_on       = timestamps[on_mask]             # (t_on,)
         dff_on        = deltaf_f[:, on_mask]            # (n_rois, t_on)
-        orientation  = orientations[trial_id % len(orientations)]
-        trial_block  = trial_id // block_size
+        direction     = directions[trial_id % len(directions)]
+        orientation   = orientations[trial_id % len(orientations)]
+        trial_block   = trial_id // block_size
 
         all_trials.append({
             'trial':       trial_id,
             'block':       trial_block,
+            'direction':   direction,
             'orientation': orientation,
             'time':        time_slice,
             'dff':         trial_data,

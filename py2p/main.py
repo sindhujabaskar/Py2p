@@ -30,8 +30,7 @@ database = data.df
 
 # Promote all single-level columns to two-level columns
 database.columns = pd.MultiIndex.from_tuples(
-    [(col if isinstance(col, tuple) else ('raw', col)) for col in database.columns]
-)
+    [(col if isinstance(col, tuple) else ('raw', col)) for col in database.columns])
 
 # %% ROI FLUORESCENCE PROCESSING
 # Filter the data by boolean 'is_cell'
@@ -59,7 +58,7 @@ database['calculate','interpolated'] = database.apply(lambda row: scipy.interpol
 percentile = 3 
 database['calculate','interp_percentile'] = database['calculate','interpolated'].apply(lambda x: np.percentile(x, percentile, axis =1, keepdims=True)) 
 
-#calculate the dF/F values after interpolation
+# calculate the dF/F values after interpolation
 database['calculate','interp_deltaf_f'] = database['calculate','interpolated'].combine(database['calculate','interp_percentile'], 
     lambda raw, baseline: (raw - baseline) / baseline)
 
@@ -78,7 +77,6 @@ database[('analysis','peaks_prominence')] = database[('analysis','mean_deltaf_f'
     lambda arr: find_peaks(arr, prominence=0.3)[0])
 
 database[('analysis','num_peaks_prominence')] = database[('analysis','peaks_prominence')].apply(len)
-
 
 
 # %%
@@ -102,7 +100,7 @@ database['analysis','pupil_diameter_mm'] = database['raw','pupil'].apply(lambda 
 database['toolkit','pupil_timestamps'] = database['analysis','pupil_diameter_mm'].apply(lambda arr: np.arange(arr.shape[0])/40.0)
 
 def process_pupil_data(database: pd.DataFrame,
-                       downsample_threshold: int = None,
+                       downsample_threshold: int | None = None,
                        downsample_factor: int = 5):
     """
     Downsample pupil diameter timecourses for each (subject, session).

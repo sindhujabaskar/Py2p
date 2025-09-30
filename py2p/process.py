@@ -63,58 +63,6 @@ def euclidean_distance(coord1, coord2):
     """Calculate the Euclidean distance between two points."""
     return math.dist(coord1, coord2)
 
-def compute_roi_tuning(database, subject, session, roi_idx,
-                       blank_duration=3.0, stim_duration=2.0):
-    """
-    Compute a tuning curve for one ROI by measuring its mean ΔF/F
-    in the grating window (blank_duration→blank_duration+stim_duration)
-    for each orientation across all blocks.
-
-    Returns:
-      orientations : list of unique orientations in cycle order
-      mean_resps   : array of shape (n_orientations,)
-      sem_resps    : array of shape (n_orientations,)
-      block_pref   : list of preferred orientation per block
-    """
-    # pull trial table for this subject/session
-    trials = database[('toolkit','trials')].loc[(subject, session)]
-    if trials.empty:
-        raise ValueError(f"No trials for {subject} {session}")
-
-    # time & dff arrays per trial
-    orientations = trials['orientation'].values
-    times = trials['time'].values
-    dffs = trials['dff'].values  # array of shape (n_trials, n_rois, n_time)
-
-    # window indices for the grating (2s) period
-    t0 = blank_duration
-    t1 = blank_duration + stim_duration
-    
-    # use first trial's time vector for indexing
-    tvec = np.array(times[0])
-    mask = (tvec >= t0) & (tvec < t1)
-
-    # collect responses per trial: mean ΔF/F over stim window
-    resp = np.array([dff[roi_idx, mask].mean() for dff in dffs])
-
-    # unique orientations in presented order
-    uniq_oris = np.unique(orientations)
-    mean_resps = []
-    sem_resps = []
-    for ori in uniq_oris:
-        sel = resp[orientations == ori]
-        mean_resps.append(sel.mean())
-        sem_resps.append(sel.std(ddof=1) / np.sqrt(len(sel)))
-
-    # preferred orientation per block
-    n_blocks = len(resp) // len(uniq_oris)
-    block_pref = []
-    for b in range(n_blocks):
-        block_resp = resp[b*len(uniq_oris):(b+1)*len(uniq_oris)]
-        block_pref.append(uniq_oris[np.argmax(block_resp)])
-
-    return list(uniq_oris), np.array(mean_resps), np.array(sem_resps), block_pref
-
 def analyze_pupil_data(
     pickle_data: pd.DataFrame,
     confidence_threshold: float = 0.95,
